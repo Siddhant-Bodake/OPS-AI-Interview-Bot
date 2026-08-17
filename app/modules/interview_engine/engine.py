@@ -11,11 +11,12 @@ in-flight turn.
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 from app.core.config import settings
 
@@ -46,6 +47,8 @@ class InterviewEngine:
     def __init__(self, store: InterviewStateStore, gemini_client: genai.Client):
         self.store = store
         self.client = gemini_client
+        self._rate_lock = asyncio.Lock()
+        self._last_call_at: float = 0.0
 
     # ---------------------------------------------------------------- setup
 
@@ -56,7 +59,6 @@ class InterviewEngine:
         scheduled_duration_seconds: int,
         question_bank: list[dict],
     ) -> InterviewState:
-        """question_bank entries: {"id", "domain", "text"} — from Module 4 output."""
         questions = [
             QuestionRecord(id=q["id"], domain=q["domain"], text=q["text"])
             for q in question_bank
@@ -69,16 +71,33 @@ class InterviewEngine:
             questions=questions,
         )
 
-    async def _generate(self, prompt: str, schema: type):
-        response = await self.client.aio.models.generate_content(
-            model=config.GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=schema,
-            ),
-        )
-        return response.parsed  # already a validated instance of `schema`
+    async def _generate(self, prompt: str, schema: type, _retries: int = 3):
+        """Throttled + retried Gemini call. Throttling keeps a single session
+        under free-tier RPM limits; retry handles the rare burst that still
+        gets a 429 (e.g. another session running concurrently)."""
+        async with self._rate_lock:
+            wait = config.MIN_SECONDS_BETWEEN_GEMINI_CALLS - (time.time() - self._last_call_at)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_call_at = time.time()
+
+        for attempt in range(_retries):
+            try:
+                response = await self.client.aio.models.generate_content(
+                    model=config.GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=schema,
+                    ),
+                )
+                return response.parsed
+            except errors.APIError as e:
+                if e.code == 429 and attempt < _retries - 1:
+                    backoff = config.MIN_SECONDS_BETWEEN_GEMINI_CALLS * (2 ** attempt)
+                    await asyncio.sleep(backoff)
+                    continue
+                raise
 
     # -------------------------------------------------------------- opening
 
@@ -97,14 +116,10 @@ class InterviewEngine:
     # ------------------------------------------------------------- anomalies
 
     async def log_anomaly(self, state: InterviewState, anomaly_type: AnomalyType) -> None:
-        """Never interrupts the live flow — logged and persisted immediately
-        so an anomaly is never lost to a drop before the next scored answer."""
         state.anomalies.append(AnomalyEvent(type=anomaly_type))
         await self.store.save(state)
 
     async def queue_candidate_question(self, state: InterviewState, question_text: str) -> None:
-        """Mid-interview candidate question — deferred, answered at the end.
-        Persisted immediately, same reasoning as log_anomaly above."""
         state.pending_candidate_questions.append(PendingCandidateQuestion(text=question_text))
         await self.store.save(state)
 
@@ -113,17 +128,12 @@ class InterviewEngine:
     async def handle_answer(
         self, state: InterviewState, role: str, answer_transcript: str
     ) -> dict:
-        """
-        Scores the current question's answer, decides on a capped follow-up,
-        persists state, and returns what should happen next.
-        """
         question = state.current_question()
         if question is None:
             raise ValueError("No current question to answer — interview may already be complete.")
 
         persona = prompts.INTERVIEWER_PERSONA.format(role=role)
 
-        # 1. Score the answer.
         score_prompt = prompts.SCORE_ANSWER_PROMPT.format(
             persona=persona,
             domain=question.domain.value,
@@ -142,7 +152,6 @@ class InterviewEngine:
             tech_depth=raw_score.tech_depth,
         )
 
-        # 2. Decide on a follow-up, only if the per-question budget allows it.
         next_action = "advance"
         followup_text = None
         if not question.followup_used:
@@ -179,7 +188,6 @@ class InterviewEngine:
             else:
                 next_action = "interview_complete"
 
-        # 3. Write-through persistence — the whole point of the exercise.
         await self.store.save(state)
 
         return {
@@ -191,7 +199,6 @@ class InterviewEngine:
     # ------------------------------------------------------------- wrap-up
 
     async def close_out(self, state: InterviewState, role: str, jd_context: str) -> str:
-        """Answers any deferred candidate questions briefly, finalizes state."""
         closing_remarks = ""
         if state.pending_candidate_questions:
             persona = prompts.INTERVIEWER_PERSONA.format(role=role)
@@ -215,13 +222,11 @@ class InterviewEngine:
     # ------------------------------------------------------- drop / resume
 
     async def handle_drop(self, state: InterviewState) -> InterviewStatus:
-        """Called when the call/session disconnects mid-interview (Module 6/7)."""
         state.status = InterviewStatus.DROPPED
         await self.store.save(state)
         return state.status
 
     async def resume(self, session_id: str) -> InterviewState | None:
-        """Called on a successful reconnect — picks up exactly where it left off."""
         state = await self.store.load(session_id)
         if state is None:
             return None
@@ -230,10 +235,7 @@ class InterviewEngine:
         return state
 
     async def finalize_after_failed_reconnect(self, state: InterviewState) -> InterviewStatus:
-        """Called once the retry window is exhausted with no reconnect."""
         if state.is_usable_if_dropped():
-            # Partial but usable per the 60% rule — kept distinct from a full
-            # completion so the admin panel (Module 10) can tell them apart.
             state.status = InterviewStatus.COMPLETED_PARTIAL
         else:
             state.status = InterviewStatus.RESCHEDULE_REQUIRED
