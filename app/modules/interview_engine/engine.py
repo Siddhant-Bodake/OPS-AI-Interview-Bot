@@ -16,6 +16,8 @@ import uuid
 
 from google import genai
 
+from app.core.config import settings
+
 from . import config, prompts
 from .llm_schemas import (
     DeferredQAResponse,
@@ -33,6 +35,10 @@ from .state import (
     QuestionRecord,
 )
 from .store import InterviewStateStore
+
+
+def build_gemini_client() -> genai.Client:
+    return genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 class InterviewEngine:
@@ -90,18 +96,14 @@ class InterviewEngine:
     # ------------------------------------------------------------- anomalies
 
     async def log_anomaly(self, state: InterviewState, anomaly_type: AnomalyType) -> None:
-        """Never interrupts the live flow — just recorded for the admin panel."""
+        """Never interrupts the live flow — logged and persisted immediately
+        so an anomaly is never lost to a drop before the next scored answer."""
         state.anomalies.append(AnomalyEvent(type=anomaly_type))
         await self.store.save(state)
 
     async def queue_candidate_question(self, state: InterviewState, question_text: str) -> None:
         """Mid-interview candidate question — deferred, answered at the end.
-
-        Persisted immediately (like log_anomaly) rather than riding along
-        with the next answer's save(): a candidate question asked right
-        before a drop should not be silently lost if no further answer
-        ever comes in.
-        """
+        Persisted immediately, same reasoning as log_anomaly above."""
         state.pending_candidate_questions.append(PendingCandidateQuestion(text=question_text))
         await self.store.save(state)
 
@@ -165,8 +167,6 @@ class InterviewEngine:
                     asked_at=time.time(),
                 )
                 state.questions.insert(state.current_index + 1, followup_q)
-                state.current_index += 1  # point current_question() at the follow-up itself,
-                # so the candidate's next answer scores the follow-up, not the original question again
                 next_action = "followup"
                 followup_text = decision.followup_text
 
@@ -231,7 +231,9 @@ class InterviewEngine:
     async def finalize_after_failed_reconnect(self, state: InterviewState) -> InterviewStatus:
         """Called once the retry window is exhausted with no reconnect."""
         if state.is_usable_if_dropped():
-            state.status = InterviewStatus.COMPLETED_PARTIAL  # usable per the 60% rule
+            # Partial but usable per the 60% rule — kept distinct from a full
+            # completion so the admin panel (Module 10) can tell them apart.
+            state.status = InterviewStatus.COMPLETED_PARTIAL
         else:
             state.status = InterviewStatus.RESCHEDULE_REQUIRED
         state.ended_at = time.time()
