@@ -15,6 +15,7 @@ import time
 import uuid
 
 from google import genai
+from google.genai import types
 
 from app.core.config import settings
 
@@ -72,12 +73,12 @@ class InterviewEngine:
         response = await self.client.aio.models.generate_content(
             model=config.GEMINI_MODEL,
             contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": schema,
-            },
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=schema,
+            ),
         )
-        return schema.model_validate_json(response.text)
+        return response.parsed  # already a validated instance of `schema`
 
     # -------------------------------------------------------------- opening
 
