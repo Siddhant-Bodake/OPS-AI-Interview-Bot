@@ -156,9 +156,35 @@ class InterviewEngine:
             tech_depth=raw_score.tech_depth,
         )
 
+        # Compute average up front so we can short-circuit on a near-zero answer
+        # before spending an LLM call on a "follow-up" decision that makes no
+        # sense for a non-answer.
+        avg_score = question.score.average
+
         next_action = "advance"
         followup_text = None
-        if not question.followup_used:
+        NEAR_ZERO_THRESHOLD = 1.5       # out of 10 — tune based on more live samples
+        LOW_RELEVANCE_THRESHOLD = 2.0   # relevance below this = off-topic/non-answer
+
+        next_action = "advance"
+        followup_text = None
+
+        is_nonanswer = (raw_score.relevance <= LOW_RELEVANCE_THRESHOLD) or (avg_score <= NEAR_ZERO_THRESHOLD)
+
+        if is_nonanswer and question.reask_count < config.REASK_MAX_CAP:
+            # Don't "follow up" on nothing — re-ask the same question instead.
+            # No LLM call needed for this branch.
+            question.reask_count += 1
+            next_action = "reask_same_question"
+            question.asked_at = time.time()
+
+        elif is_nonanswer:
+            # Re-ask budget exhausted — accept the low score as final for this
+            # question and move on, rather than looping forever on a
+            # candidate who won't/can't answer it.
+            next_action = "advance"
+
+        elif not question.followup_used:
             followup_prompt = prompts.DECIDE_FOLLOWUP_PROMPT.format(
                 persona=persona,
                 question_text=question.text,

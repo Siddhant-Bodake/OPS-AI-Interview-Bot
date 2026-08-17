@@ -15,6 +15,16 @@ from app.modules.interview_engine import InterviewEngine, InterviewStateStore
 from app.modules.interview_engine.engine import build_gemini_client
 from app.modules.interview_engine.state import AnomalyType, InterviewStatus
 
+import time
+from contextlib import contextmanager
+
+@contextmanager
+def timed(label: str):
+    start = time.perf_counter()
+    yield
+    elapsed = time.perf_counter() - start
+    print(f"  ⏱ {label}: {elapsed:.2f}s")
+
 
 def make_engine() -> tuple[InterviewEngine, InterviewStateStore]:
     store = InterviewStateStore(redis_url=settings.REDIS_URL)
@@ -61,17 +71,19 @@ async def scenario_full_interview():
 
     # Walk the question list until it's exhausted, answering follow-ups too.
     guard = 0
-    while state.current_question() is not None and guard < 6:  # guard: safety cap
+    while state.current_question() is not None and guard < 6:
         q = state.current_question()
         answer = sample_answers.get(q.domain.value, "I'd approach that methodically, step by step.")
-        result = await engine.handle_answer(state, role="Backend Engineer", answer_transcript=answer)
+        with timed(f"handle_answer [{q.domain.value}]"):
+            result = await engine.handle_answer(state, role="Backend Engineer", answer_transcript=answer)
         print(f"Q[{q.domain.value}]: {q.text}\n  -> action={result['action']}"
               + (f", followup={result['followup_text']!r}" if result["followup_text"] else ""))
         guard += 1
 
-    closing = await engine.close_out(
-        state, role="Backend Engineer", jd_context="Backend Engineer, Python, distributed systems"
-    )
+    with timed("close_out"):
+        closing = await engine.close_out(
+            state, role="Backend Engineer", jd_context="Backend Engineer, Python, distributed systems"
+        )
     print("Closing (deferred Q&A):\n", closing or "(no deferred questions)")
     print("Final domain scores:", state.domain_scores())
     print("Status:", state.status.value)
@@ -221,6 +233,94 @@ async def scenario_followup_cap():
     await store.close()
 
 
+async def scenario_answer_quality_spectrum():
+    """Same technical question, three answer qualities, in separate
+    single-question sessions. No assertions — this is for YOU to eyeball:
+    do the scores actually separate strong / weak / off-topic sensibly?
+    [LLM] — 3 sessions x up to 2 calls each (score + followup decision)."""
+    print("\n=== SCENARIO: answer_quality_spectrum [LLM] ===")
+    question_bank = [
+        {"id": "q1", "domain": "technical", "text": "How would you design a rate limiter for an API?"}
+    ]
+    answers = {
+        "strong": (
+            "I'd use a token bucket per API key, stored in Redis with an atomic "
+            "Lua script to avoid race conditions, refilling at a fixed rate. "
+            "For distributed nodes I'd centralize the bucket in Redis rather than "
+            "per-instance memory, and return a 429 with a Retry-After header when exhausted."
+        ),
+        "weak": "Umm, maybe just count the requests and block if too many? Not totally sure.",
+        "off_topic": "I really enjoy hiking on weekends and I have two dogs.",
+    }
+
+    results = {}
+    for label, answer in answers.items():
+        engine, store = make_engine()
+        state = engine.new_session(
+            candidate_id=f"cand_quality_{label}", mode="web",
+            scheduled_duration_seconds=900, question_bank=question_bank,
+        )
+        with timed(f"start_interview [{label}]"):
+            await engine.start_interview(state, role="Backend Engineer", duration_minutes=15)
+        with timed(f"handle_answer [{label}]"):
+            result = await engine.handle_answer(state, role="Backend Engineer", answer_transcript=answer)
+        score = state.questions[0].score
+        results[label] = score
+        print(f"[{label}] relevance={score.relevance} clarity={score.clarity} "
+              f"tech_depth={score.tech_depth} avg={score.average}  "
+              f"(followup_offered={result['action'] == 'followup'})")
+
+        await store.close()
+
+    
+async def scenario_reask_on_nonanswer():
+    """Off-topic answer should trigger a re-ask of the SAME question,
+    not a follow-up. [LLM] — 1 call (score only, no follow-up-decision call)."""
+    print("\n=== SCENARIO: reask_on_nonanswer [LLM] ===")
+    engine, store = make_engine()
+    state = engine.new_session(
+        candidate_id="cand_reask", mode="web",
+        scheduled_duration_seconds=900,
+        question_bank=[{"id": "q1", "domain": "technical",
+                         "text": "How would you design a rate limiter for an API?"}],
+    )
+    await engine.start_interview(state, role="Backend Engineer", duration_minutes=15)
+
+    result = await engine.handle_answer(
+        state, role="Backend Engineer",
+        answer_transcript="I like hiking on weekends and I have two dogs.",
+    )
+    print("Result:", result)
+    assert result["action"] == "reask_same_question"
+    assert state.current_index == 0, "Should still be on Q1, not advanced"
+    print("Confirmed: re-asked same question, did not advance or treat as follow-up.")
+    await store.close()
+
+async def scenario_reask_cap_exhausted():
+    """Candidate gives an off-topic answer 3 times in a row on the same
+    question. Should re-ask twice (cap=2), then give up and advance on the
+    3rd non-answer rather than looping forever. [LLM] — 3 calls."""
+    print("\n=== SCENARIO: reask_cap_exhausted [LLM] ===")
+    engine, store = make_engine()
+    state = engine.new_session(
+        candidate_id="cand_reask_cap", mode="web",
+        scheduled_duration_seconds=900,
+        question_bank=[{"id": "q1", "domain": "technical",
+                         "text": "How would you design a rate limiter for an API?"}],
+    )
+    await engine.start_interview(state, role="Backend Engineer", duration_minutes=15)
+
+    off_topic = "I really enjoy hiking on weekends."
+    for attempt in range(1, 4):
+        result = await engine.handle_answer(state, role="Backend Engineer", answer_transcript=off_topic)
+        print(f"Attempt {attempt}: action={result['action']}, reask_count={state.questions[0].reask_count}")
+
+    assert state.questions[0].reask_count == 2, "Should stop incrementing after cap"
+    assert result["action"] == "interview_complete", "Should give up and advance past the last question"
+    print("Confirmed: re-asked exactly 2 times, then gave up and moved on.")
+    await store.close()
+
+
 SCENARIOS = {
     "full_interview": scenario_full_interview,
     "anomaly_logging": scenario_anomaly_logging,
@@ -229,6 +329,9 @@ SCENARIOS = {
     "failed_reconnect_reschedule": scenario_failed_reconnect_reschedule,
     "interrupt_with_question": scenario_interrupt_with_question,
     "followup_cap": scenario_followup_cap,
+    "answer_quality_spectrum": scenario_answer_quality_spectrum,
+    "reask_on_nonanswer": scenario_reask_on_nonanswer,
+    "reask_cap_exhausted": scenario_reask_cap_exhausted,
 }
 
 

@@ -56,6 +56,7 @@ class QuestionRecord(BaseModel):
     answered_at: Optional[float] = None
     score: Optional[AnswerScore] = None
     followup_used: bool = False  # enforces the 1-follow-up-per-question cap
+    reask_count: int = 0  # how many times this question was re-asked after a non-answer
 
 
 class PendingCandidateQuestion(BaseModel):
