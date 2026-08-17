@@ -158,6 +158,42 @@ async def scenario_failed_reconnect_reschedule():
     await store.close()
 
 
+async def scenario_interrupt_with_question():
+    """Candidate interrupts Q1 with a question instead of answering it.
+    Confirms: it's queued, NOT scored, and Q1 is still the current
+    question afterward (delivery layer should re-ask it)."""
+    print("\n=== SCENARIO: interrupt_with_question [no-LLM] ===")
+    engine, store = make_engine()
+    state = engine.new_session(
+        candidate_id="cand_interrupt", mode="web",
+        scheduled_duration_seconds=900, question_bank=sample_question_bank(),
+    )
+    state.started_at = __import__("time").time()
+    state.questions[0].asked_at = state.started_at
+    await store.save(state)
+
+    q1_before = state.current_question().text
+    result = await engine.handle_candidate_utterance(
+        state, role="Backend Engineer",
+        transcript="Wait, what does the tech stack for this role actually look like?",
+    )
+    print("Result:", result)
+    assert result["action"] == "clarifying_question_noted"
+    assert state.current_question().text == q1_before, "Q1 should NOT have advanced"
+    assert state.questions[0].score is None, "Q1 should NOT have been scored"
+    print("Confirmed: question queued, Q1 unscored and unadvanced.")
+
+    # Now the candidate actually answers Q1 — normal path resumes.
+    result2 = await engine.handle_candidate_utterance(
+        state, role="Backend Engineer",
+        transcript="Sorry — anyway, on the project I mentioned, I used Python and Redis.",
+    )
+    print("After real answer:", result2["action"])
+    print("Pending candidate questions at this point:", len(state.pending_candidate_questions))
+
+    await store.close()
+
+
 async def scenario_followup_cap():
     """Answers question 1 twice in a row (as if a follow-up was asked and
     answered) and confirms a SECOND follow-up is never offered — verifies
@@ -191,6 +227,7 @@ SCENARIOS = {
     "drop_and_resume": scenario_drop_and_resume,
     "failed_reconnect_usable": scenario_failed_reconnect_usable,
     "failed_reconnect_reschedule": scenario_failed_reconnect_reschedule,
+    "interrupt_with_question": scenario_interrupt_with_question,
     "followup_cap": scenario_followup_cap,
 }
 

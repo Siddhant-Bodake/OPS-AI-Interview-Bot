@@ -50,6 +50,7 @@ class InterviewEngine:
         self._rate_lock = asyncio.Lock()
         self._last_call_at: float = 0.0
 
+
     # ---------------------------------------------------------------- setup
 
     def new_session(
@@ -99,6 +100,7 @@ class InterviewEngine:
                     continue
                 raise
 
+
     # -------------------------------------------------------------- opening
 
     async def start_interview(self, state: InterviewState, role: str, duration_minutes: int) -> str:
@@ -113,6 +115,7 @@ class InterviewEngine:
         await self.store.save(state)
         return greeting.greeting_text
 
+
     # ------------------------------------------------------------- anomalies
 
     async def log_anomaly(self, state: InterviewState, anomaly_type: AnomalyType) -> None:
@@ -122,6 +125,7 @@ class InterviewEngine:
     async def queue_candidate_question(self, state: InterviewState, question_text: str) -> None:
         state.pending_candidate_questions.append(PendingCandidateQuestion(text=question_text))
         await self.store.save(state)
+
 
     # --------------------------------------------------------- answer intake
 
@@ -196,6 +200,45 @@ class InterviewEngine:
             "next_question": state.current_question().text if state.current_question() else None,
         }
 
+    
+    # --------------------------------------------------------- intake router
+
+    _QUESTION_STARTERS = (
+        "what", "why", "how", "when", "where", "who",
+        "can you", "could you", "is there", "do you", "does the",
+    )
+
+    def _looks_like_a_question(self, transcript: str) -> bool:
+        """Cheap heuristic, no LLM call — keeps this check free even on a
+        tight RPM quota, since it fires on every single turn. Good enough
+        for the common barge-in case ('wait, what does...'); can be upgraded
+        to an LLM classification call later if the heuristic proves too
+        blunt in practice."""
+        stripped = transcript.strip().lower()
+        if not stripped:
+            return False
+        return stripped.endswith("?") or stripped.startswith(self._QUESTION_STARTERS)
+
+    async def handle_candidate_utterance(
+        self, state: InterviewState, role: str, transcript: str
+    ) -> dict:
+        """Entry point the delivery layer (Module 6/7) should call for every
+        finalized STT transcript, instead of calling handle_answer directly.
+
+        If the candidate interrupted with a question of their own rather
+        than answering, it's queued (not scored) and the current question
+        is NOT advanced — the delivery layer should re-prompt it."""
+        if self._looks_like_a_question(transcript):
+            await self.queue_candidate_question(state, transcript)
+            current = state.current_question()
+            return {
+                "action": "clarifying_question_noted",
+                "acknowledgment": "Good question — I'll come back to that at the end.",
+                "repeat_question": current.text if current else None,
+            }
+        return await self.handle_answer(state, role, transcript)
+    
+
     # ------------------------------------------------------------- wrap-up
 
     async def close_out(self, state: InterviewState, role: str, jd_context: str) -> str:
@@ -218,6 +261,7 @@ class InterviewEngine:
         state.status = InterviewStatus.COMPLETED
         await self.store.save(state)
         return closing_remarks
+
 
     # ------------------------------------------------------- drop / resume
 
