@@ -21,17 +21,27 @@ def _get_expected_years(expected: Union[float, list[float]]) -> float:
 
 def _keyword_weight(keyword: str, role_requirements: RoleRequirements) -> float:
     """Core keywords (language/framework/architecture) are weighted more than
-    supporting keywords (tooling/db/devops) — and that gap widens as the
-    role expects more seniority. At 0 years expected, core = supporting
-    weight (1.0 vs 0.5, so core still counts double). At 10+ years expected,
-    core weight doubles again (up to 2.0x base), so architecture/framework
-    depth dominates the skills score far more than tooling for senior roles."""
-
+    supporting keywords (tooling/db/devops) — with 3 phases based on seniority:
+    - Fresher (1-3 years): core = supporting (equal weights)
+    - Mid (3-6 years): core = 2.0, supporting = 0.7
+    - Expert (6+ years): core = 1.0, supporting = 0.5"""
     expected_years = _get_expected_years(role_requirements.expected_years_experience)
-    seniority_multiplier = 1.0 + min(expected_years / 5.0, 1.0)
-    if keyword in role_requirements.core_keywords:
-        return 1.0 * seniority_multiplier
-    return 0.5  # supporting keywords stay flat regardless of seniority
+    
+    if expected_years < 3:
+        # Fresher phase: equal weights
+        if keyword in role_requirements.core_keywords:
+            return 1.0
+        return 1.0
+    elif expected_years < 6:
+        # Mid phase: core weighted higher
+        if keyword in role_requirements.core_keywords:
+            return 1.0
+        return 0.7
+    else:
+        # Expert phase: core and supporting both lower but core still higher
+        if keyword in role_requirements.core_keywords:
+            return 1.0
+        return 0.5
 
 
 def _score_skills_and_certifications(
