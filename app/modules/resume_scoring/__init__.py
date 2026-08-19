@@ -5,6 +5,7 @@ from .schemas import (
     RoleRequirements,
     ScoreBreakdown,
     CertificationEntry,
+    ScoringResponse,
 )
 from .scorer import score_resume
 
@@ -17,4 +18,5 @@ __all__ = [
     "ScoreBreakdown",
     "CertificationEntry",
     "score_resume",
+    "ScoringResponse",
 ]

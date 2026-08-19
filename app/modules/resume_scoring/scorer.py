@@ -15,13 +15,14 @@ from .schemas import (
     RoleRequirements,
     ScoreBreakdown,
     SkillMatchResponse,
+    ScoringResponse,
 )
 
 
-def _get_expected_years(expected: Union[float, list[float], tuple[float, ...]]) -> float:
+def _get_expected_years(expected: Union[float, list[float]]) -> float:
     """Convert expected_years_experience to a single float for scoring.
-    If it's a range [min, max] or (min, max), use the midpoint. If it's a single value, use it directly."""
-    if isinstance(expected, (list, tuple)):
+    If it's a range [min, max], use the midpoint. If it's a single value, use it directly."""
+    if isinstance(expected, list):
         if len(expected) == 0:
             return 1.0  # default fallback
         return sum(expected) / len(expected)  # use midpoint/average
@@ -29,16 +30,16 @@ def _get_expected_years(expected: Union[float, list[float], tuple[float, ...]]) 
 
 
 def _score_skills_and_certifications(
-    match_response: SkillMatchResponse, role_requirements: RoleRequirements
+    scoring: ScoringResponse, role_requirements: RoleRequirements
 ) -> tuple[float, float, list[str], list[str]]:
     total = len(role_requirements.jd_keywords)
     if total == 0:
         return 0.0, 0.0, [], []
 
-    skill_matches = [m for m in match_response.matches if m.matched_via == "skill"]
-    cert_matches = [m for m in match_response.matches if m.matched_via == "certification"]
-    matched = [m.jd_keyword for m in match_response.matches if m.matched]
-    missing = [m.jd_keyword for m in match_response.matches if not m.matched]
+    skill_matches = [m for m in scoring.skill_matches if m.matched_via == "skill"]
+    cert_matches = [m for m in scoring.skill_matches if m.matched_via == "certification"]
+    matched = [m.jd_keyword for m in scoring.skill_matches if m.matched]
+    missing = [m.jd_keyword for m in scoring.skill_matches if not m.matched]
 
     skill_fraction = len(skill_matches) / total
     avg_years = sum(m.estimated_years for m in skill_matches) / len(skill_matches) if skill_matches else 0.0
@@ -73,15 +74,14 @@ def _score_education(profile: ResumeProfile) -> float:
 def score_resume(
     profile: ResumeProfile,
     role_requirements: RoleRequirements,
-    skill_match: SkillMatchResponse,
-    project_relevance: ProjectRelevanceResponse,
+    scoring: ScoringResponse,
 ) -> ScoreBreakdown:
     skills_score, certifications_score, matched, missing = _score_skills_and_certifications(
-        skill_match, role_requirements
+        scoring, role_requirements
     )
     experience_score = _score_experience(profile, role_requirements)
     education_score = _score_education(profile)
-    projects_score = round(project_relevance.projects_score, 2)
+    projects_score = round(scoring.projects_score, 2)
 
     overall = (
         skills_score * config.SKILLS_WEIGHT

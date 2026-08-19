@@ -26,32 +26,36 @@ Extract:
 Respond per the provided schema only."""
 
 
-# ------------------------ SKILL MATCH --------------------------------------------
-SKILL_MATCH_PROMPT = """You are matching a candidate's resume against a role's required skills, for the role of {role}.
+# ------------------------ SCORING -------------------------------------------
+SCORING_PROMPT = """You are evaluating a candidate's resume against the role of {role}.
+This role typically expects around {expected_years} years of relevant experience — use this only as calibration context, not a hard cutoff.
 
-Required skills (JD keywords): {jd_keywords}
+Job description context: {jd_text}
 
-Candidate's listed skills (name: years_experience):
-{candidate_skills_block}
+--- Extracted resume data ---
+Summary: {summary_block}
+Skills: {skills_block}
+Certifications: {certifications_block}
+Projects: {projects_block}
+Work experience: {experience_block}
+Other sections (Languages, Awards, Publications, Volunteer, etc.): {other_sections_block}
+---
 
-Candidate's certifications:
-{candidate_certifications_block}
+TASK 1 — Summary relevance:
+Judge how relevant the candidate's summary/objective is to this role's JD, 0-100%.
+If no summary is present, respond 0.
 
-For EACH required skill, decide if the candidate demonstrates it — via a listed SKILL, via a relevant CERTIFICATION, or not at all. Include synonyms/abbreviations (e.g. "Go" matches "Golang", "K8s" matches "Kubernetes"). A certification counts as evidence when it's clearly about that technology (e.g. "AWS Certified Solutions Architect" -> "AWS"). Do not match unrelated skills just because they're in the same broad category.
-For each required skill, respond with: jd_keyword, matched (bool), matched_via ("skill"/"certification"/"none"), matched_candidate_skill (the matching skill or certification name, or null), estimated_years (years_experience if matched via a skill, else 1.0 if matched via a certification, else 0).
+TASK 2 — Skills + certifications matching:
+Required JD skills: {jd_keywords}
+For EACH one, decide if the candidate demonstrates it via a listed SKILL, a relevant CERTIFICATION, or not at all. Include synonyms/abbreviations (e.g. "Go" matches "Golang", "K8s" matches "Kubernetes"). Respond per skill: jd_keyword, matched, matched_via, matched_candidate_skill, estimated_years.
 
-Respond per the schema, one entry per required skill, in the same order given."""
+TASK 3 — Project relevance:
+For EACH listed project, judge relevance to this role's JD, 0-100% — consider both topical fit and depth (real scope vs. a toy project).
 
+TASK 4 — Experience relevance:
+Judge how relevant the candidate's overall work experience is to this role's JD, 0-100% — consider both the type of work and its depth, not just years.
 
-# ------------------------ PROJECT RELEVANCE ----------------------------------------
-PROJECT_RELEVANCE_PROMPT = """You are assessing how relevant a candidate's projects are to
-the role of {role}. Job description context:
+TASK 5 — Other (bonus, be conservative):
+If content in "other sections" is genuinely valuable for this specific role (e.g. a directly relevant published paper, a role-relevant language requirement met, a notable award), award 0 to 0.5. Most resumes should score 0 or close to it here — this is a minor bonus, not a major scoring dimension.
 
-{jd_text}
-
-Candidate's projects:
-{projects_block}
-
-Score 0-10 on how relevant and substantive these projects are to this specific role — consider both topical relevance (do they use similar tech/solve similar problems) and depth (is this a throwaway toy project or something with real scope). If the candidate listed no projects, score 0.
-
-Respond with projects_score only, per the schema."""
+Respond per the schema."""

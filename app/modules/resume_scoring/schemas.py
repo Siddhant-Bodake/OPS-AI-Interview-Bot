@@ -64,30 +64,31 @@ class RoleRequirements(BaseModel):
     """Config, not LLM output — one of these per job role."""
     role: str
     jd_keywords: list[str]      # skills/terms this role cares about
-    expected_years_experience: Union[float, list[float], tuple[float, ...]]  # single value or range [min, max]
+    expected_years_experience: Union[float, list[float]]  # single value or range [min, max]
     threshold: float            # configurable per role (locked decision)
 
 
 class ScoreBreakdown(BaseModel):
     skills_score: float
-    certifications_score: float      # NEW
+    certifications_score: float
     experience_score: float
     education_score: float
-    projects_score: float            # NEW
+    projects_score: float
+    other_bonus_applied: float          # NEW
     overall_score: float
     threshold_used: float
     passed_threshold: bool
     matched_keywords: list[str]
     missing_keywords: list[str]
-    summary_penalty_applied: bool    # NEW
+    summary_penalty_applied: bool   # NEW
 
 
 class SkillMatch(BaseModel):
     jd_keyword: str
     matched: bool
-    matched_candidate_skill: Optional[str] = None  # the actual skill name from the resume, if matched
-    estimated_years: float = 0.0  # candidate's years on the matched skill; 0 if unmatched
     matched_via: Literal["skill", "certification", "none"] = "none"
+    matched_candidate_skill: Optional[str] = None
+    estimated_years: float = 0.0
 
 
 class SkillMatch(BaseModel):
@@ -99,15 +100,21 @@ class SkillMatch(BaseModel):
 
 
 class ScoringResponse(BaseModel):
-    """One call covers everything that needs LLM judgment against a role:
-    skill/certification matching AND project relevance."""
-    skill_matches: list[SkillMatch]
-    projects_score: float  # 0-10, relevance + depth of projects vs the JD
-    
+    summary_relevance_percent: float          # Task 1 — 0 if no summary present
+    skill_matches: list[SkillMatch]            # Task 2
+    project_relevance: list[ProjectRelevance]  # Task 3
+    experience_relevance_percent: float        # Task 4 — 0-100
+    other_bonus_score: float                   # Task 5 — 0 to MAX_OTHER_BONUS
+
 
 class SkillMatchResponse(BaseModel):
     matches: list[SkillMatch]
 
+
+class ProjectRelevance(BaseModel):
+    project_name: str
+    relevance_percent: float  # 0-100
+    
 
 class ProjectRelevanceResponse(BaseModel):
     projects_score: float  # 0-10, LLM's overall judgment of relevance + depth vs the JD

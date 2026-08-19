@@ -11,7 +11,7 @@ from google import genai
 from google.genai import errors, types
 
 from . import config, prompts
-from .schemas import ResumeProfile, RoleRequirements, SkillMatchResponse, ProjectRelevanceResponse, SkillMatch
+from .schemas import ResumeProfile, RoleRequirements, SkillMatch, ScoringResponse
 
 
 class ResumeExtractor:
@@ -53,42 +53,50 @@ class ResumeExtractor:
         return result
 
     
-    async def score_projects(self, profile: ResumeProfile, role_requirements: RoleRequirements) -> ProjectRelevanceResponse:
-        if not profile.projects:
-            return ProjectRelevanceResponse(projects_score=0.0)  # skip the call, save quota — no projects, no ambiguity
-
+    async def score_against_role(self, profile: ResumeProfile, role_requirements: RoleRequirements) -> ScoringResponse:
+        summary_block = profile.summary or "(none provided)"
+        skills_block = "\n".join(f"- {s.name}: {s.years_experience}y" for s in profile.skills) or "(none listed)"
+        certifications_block = "\n".join(
+            f"- {c.name}" + (f" ({c.issuer})" if c.issuer else "") for c in profile.certifications
+        ) or "(none listed)"
         projects_block = "\n".join(
             f"- {p.name}: {p.description or '(no description)'} "
             f"[{', '.join(p.technologies) if p.technologies else 'no tech listed'}]"
             for p in profile.projects
-        )
-        prompt = prompts.PROJECT_RELEVANCE_PROMPT.format(
-            role=role_requirements.role,
-            jd_text=", ".join(role_requirements.jd_keywords),
-            projects_block=projects_block,
-        )
-        result = await self._generate(prompt, ProjectRelevanceResponse)
-        if result is None:
-            # Fallback: return zero score if LLM fails
-            return ProjectRelevanceResponse(projects_score=0.0)
-        return result
+        ) or "(none listed)"
+        experience_block = "\n".join(
+            f"- {w.role_title} at {w.company} ({w.start_date or '?'} - {w.end_date or 'Present'}): "
+            f"{w.description or '(no description)'}"
+            for w in profile.work_experience
+        ) or "(none listed)"
+        other_sections_block = "\n".join(
+            f"- {o.section_title}: {o.content}" for o in profile.other_sections
+        ) or "(none)"
 
-    
-    async def match_skills(self, profile: ResumeProfile, role_requirements: RoleRequirements) -> SkillMatchResponse:
-        skills_block = "\n".join(f"- {s.name}: {s.years_experience}y" for s in profile.skills) or "(none listed)"
-        certifications_block = "\n".join(f"- {c.name}" + (f" ({c.issuer})" if c.issuer else "") for c in profile.certifications) or "(none listed)"
-        prompt = prompts.SKILL_MATCH_PROMPT.format(
+        prompt = prompts.SCORING_PROMPT.format(
             role=role_requirements.role,
+            expected_years=role_requirements.expected_years_experience,
+            jd_text=", ".join(role_requirements.jd_keywords),
             jd_keywords=", ".join(role_requirements.jd_keywords),
-            candidate_skills_block=skills_block,
-            candidate_certifications_block=certifications_block,
+            summary_block=summary_block,
+            skills_block=skills_block,
+            certifications_block=certifications_block,
+            projects_block=projects_block,
+            experience_block=experience_block,
+            other_sections_block=other_sections_block,
         )
-        result = await self._generate(prompt, SkillMatchResponse)
+        result = await self._generate(prompt, ScoringResponse)
         if result is None:
-            # Fallback: create empty matches if LLM fails
-            from .schemas import SkillMatch
-            return SkillMatchResponse(matches=[
-                SkillMatch(jd_keyword=kw, matched=False, matched_via="none", estimated_years=0.0)
-                for kw in role_requirements.jd_keywords
-            ])
+            print(f"[resume_scoring] WARNING: scoring call returned None for candidate "
+                  f"against role {role_requirements.role!r} — falling back to empty scoring.")
+            return ScoringResponse(
+                summary_relevance_percent=0.0,
+                skill_matches=[
+                    SkillMatch(jd_keyword=kw, matched=False, matched_via="none", estimated_years=0.0)
+                    for kw in role_requirements.jd_keywords
+                ],
+                project_relevance=[],
+                experience_relevance_percent=0.0,
+                other_bonus_score=0.0,
+            )
         return result

@@ -2,8 +2,8 @@
 
 
 # GEMINI_MODEL = "gemma-4-31b-it"
-GEMINI_MODEL = "gemma-4-26b-a4b-it"
-# GEMINI_MODEL = "gemini-3.5-flash-lite"
+# GEMINI_MODEL = "gemma-4-26b-a4b-it"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 MIN_SECONDS_BETWEEN_GEMINI_CALLS = 0.0  # same free-tier RPM guard as module 8
 
 
@@ -23,14 +23,18 @@ SCORE_MIN = 0.0
 SCORE_MAX = 10.0
 
 
+SUMMARY_RELEVANCE_THRESHOLD = 60.0   # percent — below this counts as "no usable summary"
+PROJECT_RELEVANCE_THRESHOLD = 60.0   # percent — per-project relevance bar to count as "relevant"
+MAX_OTHER_BONUS = 0.5                # Task 5 — added directly to overall_score, not weighted
+
 # Simple degree-level ranking for the education score heuristic.
 DEGREE_LEVEL_SCORES = {
     "phd": 10.0, "doctorate": 10.0, "ph.d": 10.0,
     "master": 8.0, "m.s": 8.0, "m.a": 8.0, "mba": 8.0,
     "bachelor": 6.0, "b.s": 6.0, "b.a": 6.0, "b.sc": 6.0, "undergraduate": 6.0, "b.tech": 6.0,
-    "associate": 4.0, "a.s": 4.0, "a.a": 4.0,
+    "associate": 5.0, "a.s": 5.0, "a.a": 5.0,
 }
-DEFAULT_DEGREE_SCORE = 4.0  # unrecognized/other/no degree
+DEFAULT_DEGREE_SCORE = 5.0  # unrecognized/other/no degree
 
 
 # Missing-summary penalty: deducted from the final overall score (not a

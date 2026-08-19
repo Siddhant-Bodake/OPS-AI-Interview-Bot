@@ -114,13 +114,12 @@ async def scenario_strong_match():
     role = RoleRequirements(
         role="Backend Engineer",
         jd_keywords=["Python", "FastAPI", "Redis", "PostgreSQL", "Docker"],
-        expected_years_experience=(1.0, 3.0),  # 1-3 years range
+        expected_years_experience=[1.0, 3.0],  # 1-3 years range
         threshold=6.0,
     )
     profile = await extractor.extract(SAMPLE_RESUME, role.role, jd_text=", ".join(role.jd_keywords))
-    skill_match = await extractor.match_skills(profile, role)
-    project_relevance = await extractor.score_projects(profile, role)
-    result = score_resume(profile, role, skill_match, project_relevance)
+    scoring = await extractor.score_against_role(profile, role)
+    result = score_resume(profile, role, scoring)
     elapsed = time.time() - start_time
     print(f"skills={result.skills_score} experience={result.experience_score} "
           f"education={result.education_score} overall={result.overall_score} "
@@ -142,9 +141,8 @@ async def scenario_weak_match():
         threshold=6.0,
     )
     profile = await extractor.extract(WEAK_RESUME, role.role, jd_text=", ".join(role.jd_keywords))
-    skill_match = await extractor.match_skills(profile, role)
-    project_relevance = await extractor.score_projects(profile, role)
-    result = score_resume(profile, role, skill_match, project_relevance)
+    scoring = await extractor.score_against_role(profile, role)
+    result = score_resume(profile, role, scoring)
     elapsed = time.time() - start_time
     print(f"skills={result.skills_score} experience={result.experience_score} "
           f"education={result.education_score} overall={result.overall_score} "
@@ -168,12 +166,10 @@ async def scenario_role_aware_scaling():
     senior_role = RoleRequirements(role="Senior Backend Engineer", jd_keywords=jd_keywords,
                                     expected_years_experience=[5.0, 7.0], threshold=6.0)
 
-    junior_skill_match = await extractor.match_skills(profile, junior_role)
-    senior_skill_match = await extractor.match_skills(profile, senior_role)
-    junior_project_relevance = await extractor.score_projects(profile, junior_role)
-    senior_project_relevance = await extractor.score_projects(profile, senior_role)
-    junior_result = score_resume(profile, junior_role, junior_skill_match, junior_project_relevance)
-    senior_result = score_resume(profile, senior_role, senior_skill_match, senior_project_relevance)
+    junior_scoring = await extractor.score_against_role(profile, junior_role)
+    senior_scoring = await extractor.score_against_role(profile, senior_role)
+    junior_result = score_resume(profile, junior_role, junior_scoring)
+    senior_result = score_resume(profile, senior_role, senior_scoring)
     elapsed = time.time() - start_time
 
     print(f"Against JUNIOR bar (expected {junior_role.expected_years_experience}y): "
@@ -232,9 +228,8 @@ async def scenario_synonym_matching():
     profile = await extractor.extract(resume, role.role, jd_text=", ".join(role.jd_keywords))
     print(f"DEBUG: Extracted skills: {[s.name for s in profile.skills]}")
     print(f"DEBUG: Extracted profile has skills: {len(profile.skills) > 0}")
-    skill_match = await extractor.match_skills(profile, role)
-    project_relevance = await extractor.score_projects(profile, role)
-    result = score_resume(profile, role, skill_match, project_relevance)
+    scoring = await extractor.score_against_role(profile, role)
+    result = score_resume(profile, role, scoring)
     elapsed = time.time() - start_time
 
     print("matched:", result.matched_keywords, " missing:", result.missing_keywords)
