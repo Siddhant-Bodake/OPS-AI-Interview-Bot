@@ -11,6 +11,8 @@ from typing import Optional, Literal, Union
 
 from pydantic import BaseModel, Field
 
+from . import config
+
 
 class SkillEntry(BaseModel):
     name: str
@@ -99,20 +101,12 @@ class SkillMatch(BaseModel):
     estimated_years: float = 0.0
 
 
-class SkillMatch(BaseModel):
-    jd_keyword: str
-    matched: bool
-    matched_via: Literal["skill", "certification", "none"] = "none"
-    matched_candidate_skill: Optional[str] = None
-    estimated_years: float = 0.0
-
-
 class ScoringResponse(BaseModel):
-    summary_relevance_percent: float          # Task 1 — 0 if no summary present
+    summary_relevance_percent: float = Field(ge=0, le=100)        # Task 1 — 0 if no summary present
     skill_matches: list[SkillMatch]            # Task 2
     project_relevance: list[ProjectRelevance]  # Task 3
-    experience_relevance_percent: float        # Task 4 — 0-100
-    other_bonus_score: float                   # Task 5 — 0 to MAX_OTHER_BONUS
+    experience_relevance_percent: float = Field(ge=0, le=100)        # Task 4 — 0-100
+    other_bonus_score: float = Field(ge=0, le=config.MAX_OTHER_BONUS)                   # Task 5 — 0 to MAX_OTHER_BONUS
 
 
 class SkillMatchResponse(BaseModel):
@@ -121,8 +115,8 @@ class SkillMatchResponse(BaseModel):
 
 class ProjectRelevance(BaseModel):
     project_name: str
-    relevance_percent: float  # 0-100
+    relevance_percent: float = Field(ge=0, le=100)  # 0-100
     
 
 class ProjectRelevanceResponse(BaseModel):
-    projects_score: float  # 0-10, LLM's overall judgment of relevance + depth vs the JD
+    projects_score: float = Field(ge=0, le=10)  # 0-10, LLM's overall judgment of relevance + depth vs the JD

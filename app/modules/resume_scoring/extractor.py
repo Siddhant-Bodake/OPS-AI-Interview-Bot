@@ -43,12 +43,19 @@ class ResumeExtractor:
                     await asyncio.sleep(config.MIN_SECONDS_BETWEEN_GEMINI_CALLS * (2 ** attempt))
                     continue
                 raise
+            except Exception as e:
+                # Schema validation failures, malformed JSON, etc. — treat as a
+                # soft failure like a None response rather than crashing the caller.
+                print(f"[resume_scoring] WARNING: LLM response failed validation: {e}")
+                return None
 
     async def extract(self, resume_text: str, role: str, jd_text: str) -> ResumeProfile:
         prompt = prompts.EXTRACTION_PROMPT.format(role=role, jd_text=jd_text, resume_text=resume_text)
         result = await self._generate(prompt, ResumeProfile)
         if result is None:
-            # Fallback: return empty profile if LLM fails
+            print(f"[resume_scoring] WARNING: extraction returned None for role {role!r} "
+              f"— falling back to an EMPTY profile. This candidate will score near-zero "
+              f"across every dimension as a result.")
             return ResumeProfile()
         return result
 

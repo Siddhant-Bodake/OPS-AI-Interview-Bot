@@ -54,15 +54,10 @@ Judge how relevant the candidate's summary/objective is to this role's JD, 0-100
 If no summary is present, respond 0.
 
 TASK 2 — Skills + certifications matching:
-Core skills for this role (languages/frameworks/architecture — the primary evaluation
-criteria): {core_keywords}
-Supporting skills (tooling/infrastructure — secondary, matters less at senior levels):
-{supporting_keywords}
+Core skills for this role (languages/frameworks/architecture — the primary evaluation criteria): {core_keywords}
+Supporting skills (tooling/infrastructure — secondary, matters less at senior levels): {supporting_keywords}
 
-For EACH skill in both lists, decide if the candidate demonstrates it via a listed SKILL, a
-relevant CERTIFICATION, or not at all. Include synonyms/abbreviations (e.g. "Go" matches
-"Golang", "K8s" matches "Kubernetes"). Respond per skill: jd_keyword, matched, matched_via,
-matched_candidate_skill, estimated_years.
+For EACH skill in both lists, decide if the candidate demonstrates it via a listed SKILL, a relevant CERTIFICATION (not necessary for every skill, atleast for any 2 core skills), or not at all. Include synonyms/abbreviations (e.g. "Go" matches "Golang", "K8s" matches "Kubernetes"). Respond per skill: jd_keyword, matched, matched_via, matched_candidate_skill, estimated_years.
 
 TASK 3 — Project relevance:
 For EACH listed project, judge relevance to this role's JD, 0-100% — consider both topical fit and depth (real scope vs. a toy project).

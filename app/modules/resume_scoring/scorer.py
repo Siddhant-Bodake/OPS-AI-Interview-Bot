@@ -23,7 +23,7 @@ def _keyword_weight(keyword: str, role_requirements: RoleRequirements) -> float:
     """Core keywords (language/framework/architecture) are weighted more than
     supporting keywords (tooling/db/devops) — with 3 phases based on seniority:
     - Fresher (1-3 years): core = supporting (equal weights)
-    - Mid (3-6 years): core = 2.0, supporting = 0.7
+    - Mid (3-6 years): core = 1.0, supporting = 0.7
     - Expert (6+ years): core = 1.0, supporting = 0.5"""
     expected_years = _get_expected_years(role_requirements.expected_years_experience)
     
