@@ -96,6 +96,9 @@ Quick learner with self-driven project development
 
 WEAK_RESUME = """
 Sam Patel — Marketing Coordinator
+email: sam.patel@example.com
+projects:
+    - Social media campaign for local business in that role (basic content creation and scheduling) - no technical or leadership aspects involved
 Experience:
 - BrandCo, Marketing Coordinator (2022-Present): Ran social campaigns, wrote copy.
 Skills: Canva, Instagram Ads, Copywriting
@@ -113,11 +116,12 @@ async def scenario_strong_match():
     extractor = ResumeExtractor(build_gemini_client())
     role = RoleRequirements(
         role="Backend Engineer",
-        jd_keywords=["Python", "FastAPI", "Redis", "PostgreSQL", "Docker"],
-        expected_years_experience=[1.0, 3.0],  # 1-3 years range
+        core_keywords=["Java", "Spring Boot", "Microservices", "REST API"],       # language/framework/architecture
+        supporting_keywords=["Redis", "PostgreSQL", "Docker"],    # tooling/infra
+        expected_years_experience=[1.0, 2.0],  # 1-3 years range
         threshold=6.0,
     )
-    profile = await extractor.extract(SAMPLE_RESUME, role.role, jd_text=", ".join(role.jd_keywords))
+    profile = await extractor.extract(SAMPLE_RESUME, role.role, jd_text=", ".join(role.core_keywords + role.supporting_keywords))
     scoring = await extractor.score_against_role(profile, role)
     result = score_resume(profile, role, scoring)
     elapsed = time.time() - start_time
@@ -136,11 +140,12 @@ async def scenario_weak_match():
     extractor = ResumeExtractor(build_gemini_client())
     role = RoleRequirements(
         role="Backend Engineer",
-        jd_keywords=["Python", "FastAPI", "Redis", "PostgreSQL", "Docker"],
-        expected_years_experience=[1.0, 3.0],  # 1-3 years range
+        core_keywords=["Python", "FastAPI"],
+        supporting_keywords=["Redis", "PostgreSQL", "Docker"],
+        expected_years_experience=[1.0, 3.0],
         threshold=6.0,
     )
-    profile = await extractor.extract(WEAK_RESUME, role.role, jd_text=", ".join(role.jd_keywords))
+    profile = await extractor.extract(WEAK_RESUME, role.role, jd_text=", ".join(role.core_keywords + role.supporting_keywords))
     scoring = await extractor.score_against_role(profile, role)
     result = score_resume(profile, role, scoring)
     elapsed = time.time() - start_time
@@ -158,12 +163,13 @@ async def scenario_role_aware_scaling():
     print("\n=== SCENARIO: role_aware_scaling [LLM] ===")
     start_time = time.time()
     extractor = ResumeExtractor(build_gemini_client())
-    jd_keywords = ["Python", "FastAPI", "Redis", "PostgreSQL", "Docker"]
-    profile = await extractor.extract(SAMPLE_RESUME, "Backend Engineer", jd_text=", ".join(jd_keywords))
+    core_keywords = ["Python", "FastAPI"]
+    supporting_keywords = ["Redis", "PostgreSQL", "Docker"]
+    profile = await extractor.extract(SAMPLE_RESUME, "Backend Engineer", jd_text=", ".join(core_keywords + supporting_keywords))
 
-    junior_role = RoleRequirements(role="Junior Backend Engineer", jd_keywords=jd_keywords,
+    junior_role = RoleRequirements(role="Junior Backend Engineer", core_keywords=core_keywords, supporting_keywords=supporting_keywords,
                                     expected_years_experience=[0.5, 1.5], threshold=6.0)
-    senior_role = RoleRequirements(role="Senior Backend Engineer", jd_keywords=jd_keywords,
+    senior_role = RoleRequirements(role="Senior Backend Engineer", core_keywords=core_keywords, supporting_keywords=supporting_keywords,
                                     expected_years_experience=[5.0, 7.0], threshold=6.0)
 
     junior_scoring = await extractor.score_against_role(profile, junior_role)
@@ -221,11 +227,12 @@ async def scenario_synonym_matching():
     extractor = ResumeExtractor(build_gemini_client())
     role = RoleRequirements(
         role="Platform Engineer",
-        jd_keywords=["Golang", "Kubernetes", "PostgreSQL", "Terraform"],
-        expected_years_experience=[2.0, 4.0],  # 2-4 years range
+        core_keywords=["Golang", "Kubernetes"],
+        supporting_keywords=["PostgreSQL", "Terraform"],
+        expected_years_experience=[2.0, 4.0],
         threshold=6.0,
     )
-    profile = await extractor.extract(resume, role.role, jd_text=", ".join(role.jd_keywords))
+    profile = await extractor.extract(resume, role.role, jd_text=", ".join(role.core_keywords + role.supporting_keywords))
     print(f"DEBUG: Extracted skills: {[s.name for s in profile.skills]}")
     print(f"DEBUG: Extracted profile has skills: {len(profile.skills) > 0}")
     scoring = await extractor.score_against_role(profile, role)

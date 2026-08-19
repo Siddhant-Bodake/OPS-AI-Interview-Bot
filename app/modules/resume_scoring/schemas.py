@@ -44,6 +44,11 @@ class ProjectEntry(BaseModel):
     technologies: list[str] = Field(default_factory=list)
 
 
+class OtherSection(BaseModel):
+    section_title: str
+    content: str
+
+
 class ResumeProfile(BaseModel):
     """LLM extraction output. Shared schema with Module 4."""
     candidate_name: Optional[str] = None
@@ -53,6 +58,7 @@ class ResumeProfile(BaseModel):
     education: list[EducationEntry] = Field(default_factory=list)
     projects: list[ProjectEntry] = Field(default_factory=list)
     certifications: list[CertificationEntry] = Field(default_factory=list)
+    other_sections: list[OtherSection] = Field(default_factory=list)
 
     # LLM-estimated, given the target role/JD as context at extraction time —
     # deliberately NOT computed from date parsing, since resume dates are too
@@ -63,7 +69,9 @@ class ResumeProfile(BaseModel):
 class RoleRequirements(BaseModel):
     """Config, not LLM output — one of these per job role."""
     role: str
-    jd_keywords: list[str]      # skills/terms this role cares about
+    core_keywords: list[str]         # languages, frameworks, architecture — weighted heavily,
+                                     # and MORE heavily as expected_years_experience rises
+    supporting_keywords: list[str] = Field(default_factory=list)  # tooling/db/devops — flat, lighter weight
     expected_years_experience: Union[float, list[float]]  # single value or range [min, max]
     threshold: float            # configurable per role (locked decision)
 

@@ -76,8 +76,9 @@ class ResumeExtractor:
         prompt = prompts.SCORING_PROMPT.format(
             role=role_requirements.role,
             expected_years=role_requirements.expected_years_experience,
-            jd_text=", ".join(role_requirements.jd_keywords),
-            jd_keywords=", ".join(role_requirements.jd_keywords),
+            jd_text=", ".join(role_requirements.core_keywords + role_requirements.supporting_keywords),
+            core_keywords=", ".join(role_requirements.core_keywords),
+            supporting_keywords=", ".join(role_requirements.supporting_keywords) or "(none)",
             summary_block=summary_block,
             skills_block=skills_block,
             certifications_block=certifications_block,
@@ -87,13 +88,14 @@ class ResumeExtractor:
         )
         result = await self._generate(prompt, ScoringResponse)
         if result is None:
+            all_kw = role_requirements.core_keywords + role_requirements.supporting_keywords
             print(f"[resume_scoring] WARNING: scoring call returned None for candidate "
                   f"against role {role_requirements.role!r} — falling back to empty scoring.")
             return ScoringResponse(
                 summary_relevance_percent=0.0,
                 skill_matches=[
                     SkillMatch(jd_keyword=kw, matched=False, matched_via="none", estimated_years=0.0)
-                    for kw in role_requirements.jd_keywords
+                    for kw in all_kw
                 ],
                 project_relevance=[],
                 experience_relevance_percent=0.0,
