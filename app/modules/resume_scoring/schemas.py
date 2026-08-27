@@ -8,8 +8,7 @@ this same structured output.
 from __future__ import annotations
 
 from typing import Optional, Literal, Union
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from . import config
 
@@ -77,6 +76,23 @@ class RoleRequirements(BaseModel):
     expected_years_experience: Union[float, list[float]]  # single value or range [min, max]
     threshold: float            # configurable per role (locked decision)
 
+    @model_validator(mode="after")
+    def no_overlap(self):
+        core_lower = set(k.lower() for k in self.core_keywords)
+
+        seen = set()
+        deduped = []
+        for k in self.supporting_keywords:
+            kl = k.lower()
+            if kl in core_lower:
+                continue  # drop if it overlaps with core_keywords
+            if kl in seen:
+                continue  # drop if it's a duplicate within supporting_keywords
+            seen.add(kl)
+            deduped.append(k)
+
+        self.supporting_keywords = deduped
+        return self
 
 class ScoreBreakdown(BaseModel):
     skills_score: float
