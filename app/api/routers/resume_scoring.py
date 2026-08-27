@@ -5,7 +5,7 @@ import secrets
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 import uvicorn
 
 from app.core.config import settings
