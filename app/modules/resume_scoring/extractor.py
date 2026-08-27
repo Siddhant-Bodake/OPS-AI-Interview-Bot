@@ -49,13 +49,14 @@ class ResumeExtractor:
                 print(f"[resume_scoring] WARNING: LLM response failed validation: {e}")
                 return None
 
-    async def extract(self, resume_text: str, role: str, jd_text: str) -> ResumeProfile:
-        prompt = prompts.EXTRACTION_PROMPT.format(role=role, jd_text=jd_text, resume_text=resume_text)
+    async def extract(self, resume_text: str, role_requirements: "RoleRequirements") -> ResumeProfile:
+        prompt = prompts.EXTRACTION_PROMPT.format(
+            role=role_requirements.role, jd_text=role_requirements.jd_text, resume_text=resume_text
+        )
         result = await self._generate(prompt, ResumeProfile)
         if result is None:
-            print(f"[resume_scoring] WARNING: extraction returned None for role {role!r} "
-              f"— falling back to an EMPTY profile. This candidate will score near-zero "
-              f"across every dimension as a result.")
+            print(f"[resume_scoring] WARNING: extraction returned None for role "
+                  f"{role_requirements.role!r} — falling back to an EMPTY profile.")
             return ResumeProfile()
         return result
 
@@ -83,7 +84,7 @@ class ResumeExtractor:
         prompt = prompts.SCORING_PROMPT.format(
             role=role_requirements.role,
             expected_years=role_requirements.expected_years_experience,
-            jd_text=", ".join(role_requirements.core_keywords + role_requirements.supporting_keywords),
+            jd_text=role_requirements.jd_text,   # CHANGED — was the keyword-join
             core_keywords=", ".join(role_requirements.core_keywords),
             supporting_keywords=", ".join(role_requirements.supporting_keywords) or "(none)",
             summary_block=summary_block,

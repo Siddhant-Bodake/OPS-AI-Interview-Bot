@@ -70,6 +70,7 @@ class ResumeProfile(BaseModel):
 class RoleRequirements(BaseModel):
     """Config, not LLM output — one of these per job role."""
     role: str
+    jd_text: str
     core_keywords: list[str]         # languages, frameworks, architecture — weighted heavily,
                                      # and MORE heavily as expected_years_experience rises
     supporting_keywords: list[str] = Field(default_factory=list)  # tooling/db/devops — flat, lighter weight
