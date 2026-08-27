@@ -96,6 +96,40 @@ def _score_education(profile: ResumeProfile) -> float:
     return best
 
 
+def _score_experience(
+    profile: ResumeProfile,
+    role_requirements: RoleRequirements,
+    scoring: ScoringResponse,
+) -> float:
+    """Score experience based on LLM relevance AND sufficiency against expected years range."""
+    experience_score = round(scoring.experience_relevance_percent / 100 * config.SCORE_MAX, 2)
+    
+    expected = role_requirements.expected_years_experience
+    candidate_years = profile.relevant_years_experience or 0.0
+    
+    # Determine comparison point based on range logic
+    if isinstance(expected, list):
+        if len(expected) >= 2:
+            min_expected, max_expected = expected[0], expected[1]
+            # If below minimum, compare against minimum
+            # If at or above minimum, compare against maximum (for seniority assessment)
+            comparison_point = min_expected if candidate_years < min_expected else max_expected
+        else:
+            comparison_point = expected[0] if expected else 1.0
+    else:
+        comparison_point = expected
+    
+    # Apply fixed penalties based on sufficiency
+    if candidate_years < comparison_point * 0.5:
+        # Less than 50% - heavy penalty
+        return round(experience_score - 1.25, 2)
+    elif candidate_years < comparison_point * 0.75:
+        # Less than 75% - moderate penalty
+        return round(experience_score - 0.5, 2)
+    
+    return experience_score
+
+
 def score_resume(
     profile: ResumeProfile,
     role_requirements: RoleRequirements,
@@ -104,7 +138,7 @@ def score_resume(
     skills_score, certifications_score, matched, missing = _score_skills_and_certifications(
         scoring, role_requirements
     )
-    experience_score = round(scoring.experience_relevance_percent / 100 * config.SCORE_MAX, 2)
+    experience_score = _score_experience(profile, role_requirements, scoring)
     education_score = _score_education(profile)
     projects_score = _score_projects(scoring)
 
