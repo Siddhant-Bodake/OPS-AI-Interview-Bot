@@ -9,6 +9,14 @@ from .schemas import (
     ScoringResponse,
 )
 from .scorer import score_resume
+from .url_download import (
+    download_resume_from_url,
+    ResumeURLError,
+    DomainNotAllowedError,
+    GoogleDriveAccessError,
+    ResumeDownloadTimeoutError,
+    ResumeTooLargeError,
+)
 
 __all__ = [
     "build_gemini_client",
@@ -21,4 +29,10 @@ __all__ = [
     "CertificationEntry",
     "score_resume",
     "ScoringResponse",
+    "download_resume_from_url",
+    "ResumeURLError",
+    "DomainNotAllowedError",
+    "GoogleDriveAccessError",
+    "ResumeDownloadTimeoutError",
+    "ResumeTooLargeError",
 ]

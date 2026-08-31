@@ -40,3 +40,19 @@ DEFAULT_DEGREE_SCORE = 5.0  # unrecognized/other/no degree
 # Missing-summary penalty: deducted from the final overall score (not a
 # weighted dimension — summary itself stays unscored/contextual).
 SUMMARY_MISSING_PENALTY = 0.5
+
+
+# --- URL download settings ---
+import re
+
+GOOGLE_DRIVE_URL_PATTERN = re.compile(
+    r"https?://drive\.google\.com/file/d/([a-zA-Z0-9_-]+)(?:/|/view(?:\?.*)?$)"
+)
+GOOGLE_DRIVE_OPEN_PATTERN = re.compile(
+    r"https?://drive\.google\.com/open\?id=([a-zA-Z0-9_-]+)"
+)
+GOOGLE_DRIVE_UC_PATTERN = re.compile(
+    r"https?://drive\.google\.com/uc\?id=([a-zA-Z0-9_-]+)"
+)
+GOOGLE_DRIVE_DIRECT_TEMPLATE = "https://drive.google.com/uc?export=download&id={file_id}"
+GOOGLE_DRIVE_DOMAINS = {"drive.google.com"}
