@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Uploa
 import uvicorn
 
 from app.core.config import settings
-from app.modules.interview_engine.engine import build_gemini_client
+from app.modules.resume_scoring.client import build_gemini_client
 from app.modules.resume_scoring import (
     ResumeExtractor,
     UnsupportedResumeFormat,
