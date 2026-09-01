@@ -1,6 +1,7 @@
 {
-  "backend_engineer_mid": {
+  "ea7a0420-7d85-4341-93dc-6c43e801279b": {
     "role": "Backend Engineer",
+    "role_slug": "backend_engineer_mid",
     "jd_text": "We're looking for a Backend Engineer to design and build scalable APIs and services. You'll own service architecture decisions, write clean maintainable Python/Java code, and collaborate with frontend and DevOps teams on deployment. Experience with distributed systems, database design, and REST API design is expected.",
     "core_keywords": ["Java", "Spring Boot", "Microservices", "REST API"],
     "supporting_keywords": ["Redis", "PostgreSQL", "Docker"],
