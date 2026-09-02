@@ -25,3 +25,7 @@ def get_role(role_id: str, config_path: str) -> RoleRequirements:
     if role_id not in roles:
         raise RoleNotFoundError(role_id)
     return roles[role_id]
+
+
+def list_roles(config_path: str) -> dict[str, str]:
+    return {role_id: req.role for role_id, req in _load_all(config_path).items()}

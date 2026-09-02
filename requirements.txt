@@ -11,3 +11,8 @@ python-docx-ng>=2.0.0
 
 # URL-based resume download
 httpx>=0.28.1
+
+# Candidate form
+asyncpg>=0.30.0
+streamlit>=1.40.0
+email-validator>=2.0.0

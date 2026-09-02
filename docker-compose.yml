@@ -1,0 +1,27 @@
+# Optional local stack. Manual run (uvicorn + streamlit + external Postgres) is the default.
+#
+# services:
+#   postgres:
+#     image: postgres:16
+#     environment:
+#       POSTGRES_USER: postgres
+#       POSTGRES_PASSWORD: postgres
+#       POSTGRES_DB: interview_bot
+#     ports:
+#       - "5432:5432"
+#   api:
+#     build: .
+#     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+#     env_file: .env
+#     ports:
+#       - "8000:8000"
+#     depends_on:
+#       - postgres
+#   streamlit:
+#     build: .
+#     command: streamlit run streamlit_app/candidate_form.py --server.port 8501 --server.address 0.0.0.0
+#     env_file: .env
+#     ports:
+#       - "8501:8501"
+#     depends_on:
+#       - api
