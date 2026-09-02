@@ -23,11 +23,8 @@ class Settings:
     RESUME_MAX_URL_FILE_SIZE: int = int(os.getenv("RESUME_MAX_URL_FILE_SIZE", str(10 * 1024 * 1024)))  # 10 MB
 
     # PostgreSQL + candidate form
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/interview_bot",
-    )
-    CANDIDATE_FORM_API_KEY: str = os.getenv("CANDIDATE_FORM_API_KEY", "")
-    FASTAPI_BASE_URL: str = os.getenv("FASTAPI_BASE_URL", "http://localhost:8000")
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    CANDIDATE_FORM_API_KEY: str = os.getenv("CANDIDATE_FORM_API_KEY")
+    FASTAPI_BASE_URL: str = os.getenv("FASTAPI_BASE_URL")
 
 settings = Settings()

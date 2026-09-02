@@ -1,3 +1,6 @@
+-- Prerequisite: candidate and job_roles tables must already exist.
+-- job_roles is expected to have: id (UUID PK), name, is_active.
+
 CREATE TYPE employment_status AS ENUM ('employed', 'unemployed', 'student');
 CREATE TYPE work_mode AS ENUM ('remote', 'hybrid', 'on_site');
 CREATE TYPE hear_about_source AS ENUM (
@@ -6,13 +9,13 @@ CREATE TYPE hear_about_source AS ENUM (
 
 CREATE TABLE candidate_forms (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  candidate_id        UUID NOT NULL REFERENCES candidate(id),
+  candidate_id        UUID NOT NULL REFERENCES candidates(id),
   email_address       VARCHAR(255) NOT NULL,
   full_name           VARCHAR(200) NOT NULL,
   phone_number        VARCHAR(20) NOT NULL,
   current_location    VARCHAR(200) NOT NULL,
 
-  applied_role_id     VARCHAR(36),
+  applied_role_id     UUID NOT NULL REFERENCES job_roles(id),
   total_experience_years    NUMERIC(4,1) NOT NULL CHECK (total_experience_years >= 0),
   relevant_experience_years NUMERIC(4,1) NOT NULL CHECK (relevant_experience_years >= 0),
   primary_skills      JSONB NOT NULL
@@ -47,11 +50,6 @@ CREATE TABLE candidate_forms (
   CONSTRAINT chk_relevant_lte_total
     CHECK (relevant_experience_years <= total_experience_years),
   CONSTRAINT chk_consent CHECK (consent_given = TRUE),
-  CONSTRAINT chk_applied_role
-    CHECK (
-      (applied_role_id IS NOT NULL AND applied_role_other IS NULL)
-      OR (applied_role_id IS NULL AND applied_role_other IS NOT NULL)
-    ),
   CONSTRAINT chk_notice_when_employed
     CHECK (employment_status != 'employed' OR notice_period IS NOT NULL)
 );

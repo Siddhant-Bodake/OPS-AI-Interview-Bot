@@ -18,8 +18,7 @@ class CandidateFormCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=200)
     phone_number: str = Field(min_length=7, max_length=20)
     current_location: str = Field(min_length=1, max_length=200)
-    applied_role_id: str | None = Field(default=None, max_length=36)
-    applied_role_other: str | None = Field(default=None, max_length=200)
+    applied_role_id: UUID
     total_experience_years: Decimal = Field(ge=0)
     relevant_experience_years: Decimal = Field(ge=0)
     primary_skills: list[str] = Field(min_length=1, max_length=5)
@@ -80,11 +79,6 @@ class CandidateFormCreate(BaseModel):
         if self.relevant_experience_years > self.total_experience_years:
             raise ValueError("Relevant experience cannot exceed total experience")
 
-        has_role_id = self.applied_role_id is not None
-        has_role_other = self.applied_role_other is not None and self.applied_role_other.strip() != ""
-        if has_role_id == has_role_other:
-            raise ValueError("Provide exactly one of applied_role_id or applied_role_other")
-
         if self.employment_status == EmploymentStatus.EMPLOYED:
             if not self.notice_period or not self.notice_period.strip():
                 raise ValueError("Notice period is required when employment status is employed")
@@ -113,9 +107,7 @@ class CandidateFormRecord(BaseModel):
     full_name: str
     phone_number: str
     current_location: str
-    applied_role_id: str | None
-    applied_role_other: str | None
-    applied_role_display: str
+    applied_role_id: UUID
     total_experience_years: Decimal
     relevant_experience_years: Decimal
     primary_skills: list[str]
@@ -138,5 +130,11 @@ class CandidateFormRecord(BaseModel):
 class CandidateFormSubmitResponse(BaseModel):
     id: UUID
     candidate_id: UUID
+    applied_role_id: UUID
     message: str
     created_at: datetime
+
+
+class JobRoleOption(BaseModel):
+    id: UUID
+    name: str

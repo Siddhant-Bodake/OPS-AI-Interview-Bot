@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import json
 import re
+import sys
 from datetime import date
 from pathlib import Path
 
 import streamlit as st
 
-from streamlit_app.api_client import CandidateFormApiError, submit_application
-from streamlit_app.config import ROLE_CONFIG_PATH
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from streamlit_app.api_client import CandidateFormApiError, fetch_roles, submit_application
 
 PHONE_PATTERN = re.compile(r"^\+?[\d\s\-()]{7,20}$")
-OTHER_ROLE_LABEL = "Other"
 HEAR_ABOUT_OPTIONS = {
     "LinkedIn": "linkedin",
     "Referral": "referral",
@@ -32,12 +33,6 @@ WORK_MODE_OPTIONS = {
 }
 
 
-def load_role_options() -> dict[str, str]:
-    path = Path(ROLE_CONFIG_PATH)
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return {role_id: entry["role"] for role_id, entry in data.items()}
-
-
 def query_email() -> str | None:
     params = st.query_params
     raw = params.get("email") or params.get("email_address")
@@ -48,7 +43,7 @@ def query_email() -> str | None:
     return value or None
 
 
-def validate_client(payload: dict, applied_role_label: str, hear_about_label: str) -> list[str]:
+def validate_client(payload: dict, hear_about_label: str) -> list[str]:
     errors: list[str] = []
     if not payload["email_address"]:
         errors.append("Email address is required.")
@@ -58,8 +53,8 @@ def validate_client(payload: dict, applied_role_label: str, hear_about_label: st
         errors.append("Enter a valid phone number.")
     if not payload["current_location"].strip():
         errors.append("Current location is required.")
-    if applied_role_label == OTHER_ROLE_LABEL and not (payload["applied_role_other"] or "").strip():
-        errors.append("Please specify the applied role.")
+    if not payload["applied_role_id"]:
+        errors.append("Please select an applied role.")
     if payload["relevant_experience_years"] > payload["total_experience_years"]:
         errors.append("Relevant experience cannot exceed total experience.")
     if payload["employment_status"] == "employed" and not (payload["notice_period"] or "").strip():
@@ -86,9 +81,15 @@ st.title("Candidate Application Form")
 st.caption("Fields marked with * are required.")
 
 prefilled_email = query_email()
-role_options = load_role_options()
-role_labels = list(role_options.values()) + [OTHER_ROLE_LABEL]
-role_id_by_label = {label: role_id for role_id, label in role_options.items()}
+
+try:
+    roles_data = fetch_roles()
+    role_options = {role["id"]: role["name"] for role in roles_data}
+    role_labels = list(role_options.values())
+    role_id_by_label = {label: role_id for role_id, label in role_options.items()}
+except CandidateFormApiError as exc:
+    st.error(f"Failed to load available roles: {exc.detail}")
+    st.stop()
 
 email_address = st.text_input(
     "Email Address *",
@@ -96,10 +97,6 @@ email_address = st.text_input(
     disabled=prefilled_email is not None,
 )
 applied_role_label = st.selectbox("Applied Role *", role_labels)
-if applied_role_label == OTHER_ROLE_LABEL:
-    applied_role_other = st.text_input("Applied Role (Other) *")
-else:
-    applied_role_other = ""
 
 employment_label = st.radio("Employment Status *", list(EMPLOYMENT_OPTIONS.keys()), horizontal=True)
 notice_period = ""
@@ -154,8 +151,7 @@ if submitted:
         "full_name": full_name.strip(),
         "phone_number": phone_number.strip(),
         "current_location": current_location.strip(),
-        "applied_role_id": None if applied_role_label == OTHER_ROLE_LABEL else role_id_by_label[applied_role_label],
-        "applied_role_other": applied_role_other.strip() or None,
+        "applied_role_id": role_id_by_label[applied_role_label],
         "total_experience_years": total_experience_years,
         "relevant_experience_years": relevant_experience_years,
         "primary_skills": [skill.strip() for skill in primary_skills if skill.strip()],
@@ -173,7 +169,7 @@ if submitted:
         "hear_about_other": hear_about_other.strip() or None,
         "consent_given": consent_given,
     }
-    errors = validate_client(payload, applied_role_label, hear_about_label)
+    errors = validate_client(payload, hear_about_label)
     if errors:
         for error in errors:
             st.error(error)

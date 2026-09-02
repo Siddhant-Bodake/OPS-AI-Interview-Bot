@@ -5,8 +5,8 @@ from uuid import UUID
 
 import asyncpg
 
-from app.modules.candidate_form.config import CANDIDATE_FORMS_TABLE, CANDIDATE_TABLE
-from app.modules.candidate_form.schemas import CandidateFormCreate, CandidateFormRecord
+from app.modules.candidate_form.config import CANDIDATE_FORMS_TABLE, CANDIDATE_TABLE, JOB_ROLES_TABLE
+from app.modules.candidate_form.schemas import CandidateFormCreate, CandidateFormRecord, JobRoleOption
 
 
 class CandidateLookupResult:
@@ -34,10 +34,35 @@ class CandidateFormStore:
             return None
         return CandidateLookupResult(candidate_id=row["id"], candidate_name=row["candidate_name"])
 
+    async def list_active_job_roles(self) -> list[JobRoleOption]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""
+                SELECT id, role_name
+                FROM {JOB_ROLES_TABLE}
+                WHERE is_active = TRUE
+                ORDER BY role_name
+                """
+            )
+        return [JobRoleOption(id=row["id"], name=row["role_name"]) for row in rows]
+
+    async def get_active_job_role(self, role_id: UUID) -> JobRoleOption | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"""
+                SELECT id, role_name
+                FROM {JOB_ROLES_TABLE}
+                WHERE id = $1 AND is_active = TRUE
+                """,
+                role_id,
+            )
+        if row is None:
+            return None
+        return JobRoleOption(id=row["id"], name=row["role_name"])
+
     async def insert(
         self,
         candidate_id: UUID,
-        applied_role_display: str,
         data: CandidateFormCreate,
     ) -> CandidateFormRecord:
         linkedin_url = str(data.linkedin_portfolio_url) if data.linkedin_portfolio_url else None
@@ -51,8 +76,6 @@ class CandidateFormStore:
                     phone_number,
                     current_location,
                     applied_role_id,
-                    applied_role_other,
-                    applied_role_display,
                     total_experience_years,
                     relevant_experience_years,
                     primary_skills,
@@ -70,9 +93,9 @@ class CandidateFormStore:
                     hear_about_other,
                     consent_given
                 ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                    $11::jsonb, $12::jsonb, $13, $14, $15, $16, $17, $18, $19,
-                    $20, $21, $22, $23, $24
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9::jsonb, $10::jsonb, $11, $12, $13, $14, $15, $16, $17,
+                    $18, $19, $20, $21, $22
                 )
                 RETURNING *
                 """,
@@ -82,8 +105,6 @@ class CandidateFormStore:
                 data.phone_number,
                 data.current_location,
                 data.applied_role_id,
-                data.applied_role_other,
-                applied_role_display,
                 data.total_experience_years,
                 data.relevant_experience_years,
                 json.dumps(data.primary_skills),

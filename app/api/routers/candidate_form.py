@@ -14,9 +14,10 @@ from app.modules.candidate_form import (
     CandidateFormService,
     CandidateFormSubmitResponse,
     CandidateNotFoundError,
+    JobRoleNotFoundError,
+    JobRoleOption,
     build_candidate_form_service,
 )
-from app.modules.resume_scoring.role_config import RoleNotFoundError
 
 
 def verify_api_key(x_api_key: str = Header(...)) -> None:
@@ -43,6 +44,13 @@ def get_service(pool: asyncpg.Pool = Depends(get_pool)) -> CandidateFormService:
     return build_candidate_form_service(pool)
 
 
+@router.get("/roles", response_model=list[JobRoleOption])
+async def list_active_roles(
+    service: CandidateFormService = Depends(get_service),
+) -> list[JobRoleOption]:
+    return await service.list_active_roles()
+
+
 @router.post("/submit", status_code=status.HTTP_201_CREATED)
 async def submit_candidate_form(
     payload: CandidateFormCreate,
@@ -55,10 +63,10 @@ async def submit_candidate_form(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No candidate found for this email",
         )
-    except RoleNotFoundError as exc:
+    except JobRoleNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Unknown role_id: {exc.role_id!r}",
+            detail=f"Unknown or inactive applied_role_id: {exc.role_id}",
         )
     except IntegrityConstraintViolationError as exc:
         raise HTTPException(
