@@ -66,8 +66,12 @@ def validate_client(payload: dict, applied_role_label: str, hear_about_label: st
         errors.append("Notice period is required when you are employed.")
     if payload["available_from"] < date.today().isoformat():
         errors.append("Available from must be today or a future date.")
-    if not payload["primary_skills"].strip():
-        errors.append("Primary / key skills are required.")
+    if not payload["primary_skills"]:
+        errors.append("Add at least one primary / key skill (max 5).")
+    elif len(payload["primary_skills"]) > 5:
+        errors.append("You can add at most 5 primary / key skills.")
+    if len(payload["certifications"]) > 5:
+        errors.append("You can add at most 5 certifications.")
     if not payload["interest_reason"].strip():
         errors.append("Please tell us why you are interested in this role.")
     if hear_about_label == "Other" and not (payload["hear_about_other"] or "").strip():
@@ -118,8 +122,20 @@ with st.form("candidate_application"):
         step=0.5,
         format="%.1f",
     )
-    primary_skills = st.text_area("Primary / Key Skills *")
-    certifications = st.text_area("Certifications")
+    primary_skills = st.multiselect(
+        "Primary / Key Skills * (max 5)",
+        options=[],
+        accept_new_options=True,
+        max_selections=5,
+        help="Type a skill and press Enter. Up to 5 skills.",
+    )
+    certifications = st.multiselect(
+        "Certifications (max 5)",
+        options=[],
+        accept_new_options=True,
+        max_selections=5,
+        help="Optional. Type a certification and press Enter. Up to 5.",
+    )
     available_from = st.date_input("Available From (Tentative Date) *", min_value=date.today())
     preferred_work_mode_label = st.radio("Preferred Work Mode *", list(WORK_MODE_OPTIONS.keys()), horizontal=True)
     relocate_label = st.radio("Willing to Relocate? *", ["Yes", "No"], horizontal=True)
@@ -142,8 +158,8 @@ if submitted:
         "applied_role_other": applied_role_other.strip() or None,
         "total_experience_years": total_experience_years,
         "relevant_experience_years": relevant_experience_years,
-        "primary_skills": primary_skills.strip(),
-        "certifications": certifications.strip() or None,
+        "primary_skills": [skill.strip() for skill in primary_skills if skill.strip()],
+        "certifications": [cert.strip() for cert in certifications if cert.strip()],
         "employment_status": EMPLOYMENT_OPTIONS[employment_label],
         "notice_period": notice_period.strip() or None,
         "available_from": available_from.isoformat(),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from uuid import UUID
 
 import asyncpg
@@ -70,7 +71,7 @@ class CandidateFormStore:
                     consent_given
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                    $11, $12, $13, $14, $15, $16, $17, $18, $19,
+                    $11::jsonb, $12::jsonb, $13, $14, $15, $16, $17, $18, $19,
                     $20, $21, $22, $23, $24
                 )
                 RETURNING *
@@ -85,8 +86,8 @@ class CandidateFormStore:
                 applied_role_display,
                 data.total_experience_years,
                 data.relevant_experience_years,
-                data.primary_skills,
-                data.certifications,
+                json.dumps(data.primary_skills),
+                json.dumps(data.certifications),
                 data.employment_status.value,
                 data.notice_period,
                 data.available_from,
@@ -100,4 +101,18 @@ class CandidateFormStore:
                 data.hear_about_other,
                 data.consent_given,
             )
-        return CandidateFormRecord.model_validate(dict(row))
+        record = dict(row)
+        record["primary_skills"] = _json_list(record.get("primary_skills"))
+        record["certifications"] = _json_list(record.get("certifications"))
+        return CandidateFormRecord.model_validate(record)
+
+
+def _json_list(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, str):
+        parsed = json.loads(value)
+        return [str(item) for item in parsed] if isinstance(parsed, list) else []
+    return []

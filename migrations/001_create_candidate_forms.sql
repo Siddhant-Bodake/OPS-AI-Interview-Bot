@@ -1,15 +1,7 @@
--- Prerequisite: candidate table must already exist in the same database.
--- Reference schema:
---   CREATE TABLE candidate (
---     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---     email_address   VARCHAR(255) NOT NULL UNIQUE,
---     candidate_name  VARCHAR(255) NOT NULL
---   );
-
 CREATE TYPE employment_status AS ENUM ('employed', 'unemployed', 'student');
 CREATE TYPE work_mode AS ENUM ('remote', 'hybrid', 'on_site');
 CREATE TYPE hear_about_source AS ENUM (
-  'linkedin', 'referral', 'company_website', 'job_portal', 'recruiter', 'other'
+  'linkedin', 'instagram', 'referral', 'company_website', 'job_portal', 'recruiter', 'other'
 );
 
 CREATE TABLE candidate_forms (
@@ -21,13 +13,18 @@ CREATE TABLE candidate_forms (
   current_location    VARCHAR(200) NOT NULL,
 
   applied_role_id     VARCHAR(36),
-  applied_role_other  VARCHAR(200),
-  applied_role_display VARCHAR(200) NOT NULL,
-
   total_experience_years    NUMERIC(4,1) NOT NULL CHECK (total_experience_years >= 0),
   relevant_experience_years NUMERIC(4,1) NOT NULL CHECK (relevant_experience_years >= 0),
-  primary_skills      TEXT NOT NULL,
-  certifications      TEXT,
+  primary_skills      JSONB NOT NULL
+    CHECK (
+      jsonb_typeof(primary_skills) = 'array'
+      AND jsonb_array_length(primary_skills) BETWEEN 1 AND 5
+    ),
+  certifications      JSONB NOT NULL DEFAULT '[]'::jsonb
+    CHECK (
+      jsonb_typeof(certifications) = 'array'
+      AND jsonb_array_length(certifications) <= 5
+    ),
 
   employment_status   employment_status NOT NULL,
   notice_period       VARCHAR(100),
@@ -45,6 +42,7 @@ CREATE TABLE candidate_forms (
 
   consent_given       BOOLEAN NOT NULL DEFAULT FALSE,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT chk_relevant_lte_total
     CHECK (relevant_experience_years <= total_experience_years),

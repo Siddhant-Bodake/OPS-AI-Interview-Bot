@@ -22,8 +22,8 @@ class CandidateFormCreate(BaseModel):
     applied_role_other: str | None = Field(default=None, max_length=200)
     total_experience_years: Decimal = Field(ge=0)
     relevant_experience_years: Decimal = Field(ge=0)
-    primary_skills: str = Field(min_length=1)
-    certifications: str | None = None
+    primary_skills: list[str] = Field(min_length=1, max_length=5)
+    certifications: list[str] = Field(default_factory=list, max_length=5)
     employment_status: EmploymentStatus
     notice_period: str | None = Field(default=None, max_length=100)
     available_from: date
@@ -39,16 +39,26 @@ class CandidateFormCreate(BaseModel):
 
     @field_validator(
         "applied_role_id",
-        "applied_role_other",
         "notice_period",
         "hear_about_other",
-        "certifications",
         mode="before",
     )
     @classmethod
     def empty_str_to_none(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():
             return None
+        return value
+
+    @field_validator("primary_skills", "certifications", mode="before")
+    @classmethod
+    def normalize_string_lists(cls, value: object) -> object:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            value = [item.strip() for item in value.split(",") if item.strip()]
+        if isinstance(value, list):
+            cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+            return cleaned
         return value
 
     @field_validator("phone_number")
@@ -108,8 +118,8 @@ class CandidateFormRecord(BaseModel):
     applied_role_display: str
     total_experience_years: Decimal
     relevant_experience_years: Decimal
-    primary_skills: str
-    certifications: str | None
+    primary_skills: list[str]
+    certifications: list[str]
     employment_status: EmploymentStatus
     notice_period: str | None
     available_from: date
