@@ -127,6 +127,17 @@ class CandidateFormStore:
         record["certifications"] = _json_list(record.get("certifications"))
         return CandidateFormRecord.model_validate(record)
 
+    async def mark_form_submitted(self, candidate_id: UUID) -> None:
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                f"""
+                UPDATE {CANDIDATE_TABLE}
+                SET is_form_submitted = TRUE
+                WHERE id = $1
+                """,
+                candidate_id,
+            )
+
 
 def _json_list(value: object) -> list[str]:
     if value is None:

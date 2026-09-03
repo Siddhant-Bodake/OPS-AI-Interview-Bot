@@ -55,6 +55,7 @@ class CandidateFormService:
             candidate_id=candidate.candidate_id,
             data=data,
         )
+        await self._store.mark_form_submitted(candidate.candidate_id)
         return CandidateFormSubmitResponse(
             id=record.id,
             candidate_id=record.candidate_id,

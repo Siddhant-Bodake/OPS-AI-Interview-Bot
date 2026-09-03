@@ -251,9 +251,9 @@ with st.form("candidate_application"):
                     result = submit_application(payload)
                     st.success("✅ Application submitted successfully!")
                     st.toast("Application submitted successfully!", icon="✅")
-                    st.info(f"Your candidate ID: {result.get('candidate_id')}")
                     st.session_state.form_submitted = False
                     st.session_state.form_errors = {}
+                    st.rerun()
                 except CandidateFormApiError as exc:
                     if exc.status_code == 404:
                         st.error("❌ We couldn't find your profile. Please use the email you registered with.")
