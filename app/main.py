@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.routers.question_generation import router as question_generation_router
 from app.api.routers.candidate_form import router as candidate_form_router
 from app.api.routers.resume_scoring import router as resume_scoring_router
 from app.core.config import settings
@@ -18,7 +19,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AI Interview Bot — Backend Services", lifespan=lifespan)
 app.include_router(resume_scoring_router)
 app.include_router(candidate_form_router)
-
+app.include_router(question_generation_router)
 
 @app.get("/health")
 async def health():
