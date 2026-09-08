@@ -4,7 +4,9 @@ import logging
 from uuid import UUID
 
 import asyncpg
+import httpx
 
+from app.core.config import settings
 from app.modules.candidate_form.schemas import (
     CandidateFormCreate,
     CandidateFormSubmitResponse,
@@ -56,6 +58,20 @@ class CandidateFormService:
             data=data,
         )
         await self._store.mark_form_submitted(candidate.candidate_id)
+
+        # Send webhook to n8n with candidate_id
+        if settings.FIRST_TIME_SCHEDULE_WEBHOOK:
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        settings.FIRST_TIME_SCHEDULE_WEBHOOK,
+                        json={"candidate_id": str(candidate.candidate_id)},
+                        timeout=10.0
+                    )
+                    logger.info("Webhook sent successfully to n8n for candidate_id: %s", candidate.candidate_id)
+            except Exception as exc:
+                logger.error("Failed to send webhook to n8n: %s", exc)
+
         return CandidateFormSubmitResponse(
             id=record.id,
             candidate_id=record.candidate_id,
