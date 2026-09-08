@@ -20,4 +20,14 @@ Build a set of exactly {total_count} interview questions:
 - Generated questions must reference something concrete and specific to THIS resume — not generic.
 - Do not repeat the same underlying question twice.
 
-Respond per the schema: a list of exactly {total_count} questions, each with domain, text, and source."""
+For each question, provide:
+- "domain": "technical" or "behavioral"
+- "text": the full interview question
+- "source": "bank" or "generated"
+- "title": a short label for the question topic (e.g. "REST API", "Database Transactions", "Team Collaboration")
+- "follow_up": a follow-up question to probe deeper
+- "difficulty": "easy", "medium", or "hard"
+- "expected_concepts": a list of key concepts the candidate should cover in their answer
+- "type": for technical questions use "core", "database", or "scenario_based"; for behavioral questions use "" (empty string)
+
+Respond per the schema: a list of exactly {total_count} questions."""

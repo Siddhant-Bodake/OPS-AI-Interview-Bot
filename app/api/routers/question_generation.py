@@ -75,10 +75,18 @@ async def generate_questions(
         domain = r["domain"]
         qt = r["question_text"]
         if isinstance(qt, dict):
-            for category_data in qt.values():
+            for category_key, category_data in qt.items():
                 if isinstance(category_data, dict) and "questions" in category_data:
                     for q in category_data["questions"]:
-                        bank_questions.append({"domain": domain, "question_text": q.get("question", "")})
+                        bank_questions.append({
+                            "domain": domain,
+                            "type": category_key if domain == "technical" else "",
+                            "question_text": q.get("question", ""),
+                            "title": q.get("title", ""),
+                            "follow_up": q.get("follow_up", ""),
+                            "difficulty": q.get("difficulty", "medium"),
+                            "expected_concepts": q.get("expected_concepts", []),
+                        })
         elif isinstance(qt, str):
             bank_questions.append({"domain": domain, "question_text": qt})
 
@@ -101,6 +109,30 @@ async def generate_questions(
 
     questions_json = [q.model_dump() for q in result.questions]
 
+    questions_grouped = {"technical": [], "behavioral": []}
+    qt_counter = 1
+    qbh_counter = 1
+    for q in questions_json:
+        if q["domain"] == "technical":
+            q_id = f"qt_{qt_counter:03d}"
+            qt_counter += 1
+        else:
+            q_id = f"qbh_{qbh_counter:03d}"
+            qbh_counter += 1
+
+        entry = {
+            "id": q_id,
+            "text": q["text"],
+            "source": q["source"],
+            "title": q.get("title", ""),
+            "follow_up": q.get("follow_up", ""),
+            "difficulty": q.get("difficulty", "medium"),
+            "expected_concepts": q.get("expected_concepts", []),
+        }
+        if q["domain"] == "technical":
+            entry["type"] = q.get("type", "")
+        questions_grouped[q["domain"]].append(entry)
+
     # set_id = await pool.fetchval(
     #     """INSERT INTO interview_question_sets
     #        (candidate_id, role_id, resume_score_id, seniority_tier, question_count, questions)
@@ -120,10 +152,11 @@ async def generate_questions(
         "seniority_tier": seniority_tier,
         "relevant_years": relevant_years,
         "question_count": len(questions_json),
-        "questions": questions_json,
+        "questions": questions_grouped,
     }
 
-    file_name = f"question_gen_{body.candidate_id[:8]}_{int(time.time())}.json"
+    # file_name = f"question_gen_{body.candidate_id[:8]}_{int(time.time())}.json"
+    file_name = f"question_gen_{body.candidate_id[:8]}.json"
     dump_path = dump_dir / file_name
     dump_path.write_text(json.dumps(dump_payload, indent=2))
     print(f"[question_generation] Dumped output to {dump_path}")
@@ -133,6 +166,6 @@ async def generate_questions(
         "role_id": body.role_id,
         "seniority_tier": seniority_tier,
         "question_count": len(questions_json),
-        "questions": questions_json,
+        "questions": questions_grouped,
         "dumped_to": str(dump_path),
     }

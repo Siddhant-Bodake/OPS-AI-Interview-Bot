@@ -65,7 +65,10 @@ class QuestionGenerator:
         bank_count = round(total_count * config.BANK_QUESTION_RATIO)
         generated_count = total_count - bank_count
 
-        bank_block = "\n".join(f"- [{q['domain']}] {q['question_text']}" for q in bank_questions) or "(none available)"
+        bank_block = "\n".join(
+            f"- [{q['domain']}] [{q.get('type','')}] [{q.get('difficulty','medium')}] {q['question_text']}"
+            for q in bank_questions
+        ) or "(none available)"
 
         prompt = prompts.GENERATION_PROMPT.format(
             role=role,
