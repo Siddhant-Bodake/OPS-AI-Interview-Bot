@@ -140,33 +140,38 @@ async def generate_questions(
             entry["type"] = q.get("type", "")
         questions_grouped[q["domain"]].append(entry)
 
-    # set_id = await pool.fetchval(
-    #     """INSERT INTO interview_question_sets
-    #        (candidate_id, role_id, resume_score_id, seniority_tier, question_count, questions)
-    #        VALUES ($1, $2, $3, $4, $5, $6::jsonb)
-    #        RETURNING id""",
-    #     uuid.UUID(body.candidate_id), uuid.UUID(body.role_id), uuid.UUID(body.resume_score_id),
-    #     json.dumps({"tier": seniority_tier}), len(questions_json), json.dumps(questions_json),
-    # )
+    set_id = await pool.fetchval(
+        """INSERT INTO interview_question_sets
+           (candidate_id, role_id, resume_score_id, seniority_tier, question_count, questions)
+           VALUES ($1, $2, $3, $4::jsonb, $5, $6::jsonb)
+           RETURNING id""",
+        uuid.UUID(body.candidate_id), uuid.UUID(body.role_id), uuid.UUID(body.resume_score_id),
+        json.dumps({"tier": seniority_tier}), len(questions_json), json.dumps(questions_grouped),
+    )
 
-    dump_dir = Path(r"D:\OPS\OPS-AI-Interview-Bot\backend\docs\temp")
-    dump_dir.mkdir(parents=True, exist_ok=True)
+    await pool.execute(
+        "UPDATE candidates SET is_question_generated = TRUE WHERE id = $1",
+        uuid.UUID(body.candidate_id),
+    )
 
-    dump_payload = {
-        "candidate_id": body.candidate_id,
-        "role_id": body.role_id,
-        "resume_score_id": body.resume_score_id,
-        "seniority_tier": seniority_tier,
-        "relevant_years": relevant_years,
-        "question_count": len(questions_json),
-        "questions": questions_grouped,
-    }
+    # dump_dir = Path(r"D:\OPS\OPS-AI-Interview-Bot\backend\docs\temp")
+    # dump_dir.mkdir(parents=True, exist_ok=True)
 
-    # file_name = f"question_gen_{body.candidate_id[:8]}_{int(time.time())}.json"
-    file_name = f"question_gen_{body.candidate_id[:8]}.json"
-    dump_path = dump_dir / file_name
-    dump_path.write_text(json.dumps(dump_payload, indent=2))
-    print(f"[question_generation] Dumped output to {dump_path}")
+    # dump_payload = {
+    #     "candidate_id": body.candidate_id,
+    #     "role_id": body.role_id,
+    #     "resume_score_id": body.resume_score_id,
+    #     "seniority_tier": seniority_tier,
+    #     "relevant_years": relevant_years,
+    #     "question_count": len(questions_json),
+    #     "questions": questions_grouped,
+    # }
+
+    # # file_name = f"question_gen_{body.candidate_id[:8]}_{int(time.time())}.json"
+    # file_name = f"question_gen_{body.candidate_id[:8]}.json"
+    # dump_path = dump_dir / file_name
+    # dump_path.write_text(json.dumps(dump_payload, indent=2))
+    # print(f"[question_generation] Dumped output to {dump_path}")
 
     return {
         "candidate_id": body.candidate_id,
@@ -174,5 +179,4 @@ async def generate_questions(
         "seniority_tier": seniority_tier,
         "question_count": len(questions_json),
         "questions": questions_grouped,
-        "dumped_to": str(dump_path),
     }

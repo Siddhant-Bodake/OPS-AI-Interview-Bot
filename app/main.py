@@ -1,6 +1,12 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+)
 
 from app.api.routers.question_generation import router as question_generation_router
 from app.api.routers.candidate_form import router as candidate_form_router

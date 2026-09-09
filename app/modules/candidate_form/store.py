@@ -127,6 +127,21 @@ class CandidateFormStore:
         record["certifications"] = _json_list(record.get("certifications"))
         return CandidateFormRecord.model_validate(record)
 
+    async def find_resume_score_id(self, candidate_id: UUID) -> tuple[UUID, UUID] | None:
+        """Returns (resume_score_id, role_id) for the candidate's latest scored resume, or None."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, role_id
+                FROM resume_scores
+                WHERE candidate_id = $1
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                candidate_id,
+            )
+        return (row["id"], row["role_id"]) if row else None
+
     async def mark_form_submitted(self, candidate_id: UUID) -> None:
         async with self._pool.acquire() as conn:
             await conn.execute(

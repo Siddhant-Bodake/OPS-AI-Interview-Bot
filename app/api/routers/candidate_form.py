@@ -5,7 +5,7 @@ import secrets
 
 import asyncpg
 from asyncpg.exceptions import IntegrityConstraintViolationError
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 
 from app.core.config import settings
 from app.core.database import get_pool
@@ -54,10 +54,11 @@ async def list_active_roles(
 @router.post("/submit", status_code=status.HTTP_201_CREATED)
 async def submit_candidate_form(
     payload: CandidateFormCreate,
+    background_tasks: BackgroundTasks,
     service: CandidateFormService = Depends(get_service),
 ) -> CandidateFormSubmitResponse:
     try:
-        return await service.submit(payload)
+        return await service.submit(payload, background_tasks)
     except CandidateNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
