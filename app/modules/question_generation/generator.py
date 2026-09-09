@@ -20,7 +20,7 @@ class QuestionGenerator:
         self._rate_lock = asyncio.Lock()
         self._last_call_at: float = 0.0
 
-    async def _generate(self, prompt: str, schema: type, _retries: int = 3):
+    async def _generate(self, prompt: str, schema: type, _retries: int = 5):
         async with self._rate_lock:
             wait = config.MIN_SECONDS_BETWEEN_GEMINI_CALLS - (time.time() - self._last_call_at)
             if wait > 0:
@@ -39,8 +39,12 @@ class QuestionGenerator:
                 )
                 return response.parsed
             except errors.APIError as e:
-                if e.code == 429 and attempt < _retries - 1:
-                    await asyncio.sleep(config.MIN_SECONDS_BETWEEN_GEMINI_CALLS * (2 ** attempt))
+                if e.code in (429, 503) and attempt < _retries - 1:
+                    backoff = config.MIN_SECONDS_BETWEEN_GEMINI_CALLS * (2 ** attempt)
+                    if e.code == 503:
+                        backoff *= 2
+                    print(f"[question_generation] Retry {attempt + 1}/{_retries}: {e.code} — sleeping {backoff:.1f}s")
+                    await asyncio.sleep(backoff)
                     continue
                 raise
             except Exception as e:
