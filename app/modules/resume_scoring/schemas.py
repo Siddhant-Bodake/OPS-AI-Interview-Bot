@@ -8,7 +8,7 @@ this same structured output.
 from __future__ import annotations
 
 from typing import Optional, Literal, Union
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from . import config
 
@@ -69,6 +69,8 @@ class ResumeProfile(BaseModel):
 
 class RoleRequirements(BaseModel):
     """Config, not LLM output — one of these per job role."""
+    model_config = ConfigDict(extra='ignore')
+
     role: str
     jd_text: str
     core_keywords: list[str]         # languages, frameworks, architecture — weighted heavily,

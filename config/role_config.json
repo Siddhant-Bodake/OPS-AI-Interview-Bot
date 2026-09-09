@@ -6,6 +6,22 @@
     "core_keywords": ["Java", "Spring Boot", "Microservices", "REST API"],
     "supporting_keywords": ["Redis", "PostgreSQL", "Docker"],
     "expected_years_experience": [3.0, 5.0],
-    "threshold": 6.0
+    "threshold": 6.0,
+    "question_gen_config": {
+      "technical_split": 0.7,
+      "behavioral_split": 0.3,
+      "base_question_count": 20,
+      "years_divisor": 0.5,
+      "max_question_count": 25,
+      "bank_question_ratio": 0.3,
+      "technical_type_ratio": {
+        "core": 0.4,
+        "database": 0.4,
+        "scenario_based": 0.2
+      },
+      "enforce_exact_counts": true,
+      "enforce_type_coverage": true,
+      "deduplication_enabled": true
+    }
   }
 }

@@ -3,15 +3,29 @@ given already-fetched role config, bank questions, and resume profile."""
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections import Counter
+from pathlib import Path
 
 from google import genai
 from google.genai import errors, types
 
 from . import config, prompts
-from .schemas import GeneratedQuestion, QuestionGenerationResponse
+from .schemas import GeneratedQuestion, QuestionGenConfig, QuestionGenerationResponse
 from .seniority import question_count_for
+from app.core.config import settings
+
+
+def _get_question_gen_config_from_role(role_id: str) -> QuestionGenConfig:
+    """Load question_gen_config directly from role_config.json. Falls back to static defaults."""
+    try:
+        data = json.loads(Path(settings.ROLE_CONFIG_PATH).read_text())
+        role_data = data.get(role_id, {})
+        config_dict = role_data.get("question_gen_config", {})
+        return QuestionGenConfig(**config_dict) if config_dict else QuestionGenConfig()
+    except Exception:
+        return QuestionGenConfig()
 
 
 class QuestionGenerator:
@@ -64,13 +78,13 @@ class QuestionGenerator:
         analysis["type_counts"] = {t: len(qs) for t, qs in analysis["by_type"].items() if qs}
         return analysis
 
-    def _build_type_distribution_hint(self, analysis: dict, technical_count: int) -> str:
+    def _build_type_distribution_hint(self, analysis: dict, technical_count: int,
+                                       q_config) -> str:
         """Build the type distribution requirement hint."""
-        ratio = config.TECHNICAL_TYPE_RATIO
+        ratio = q_config.technical_type_ratio
         lines = ["TECHNICAL type distribution (must follow exactly):"]
         for t, r in ratio.items():
             count = max(1, round(technical_count * r))
-            available = analysis["type_counts"].get(t, 0)
             lines.append(f"- {t}: {count} of {technical_count} technical questions ({int(r*100)}%)")
         lines.append(f"\nAvailable bank counts: {analysis['type_counts']}")
         return "\n".join(lines)
@@ -97,7 +111,7 @@ class QuestionGenerator:
     def _validate_output(self, questions: list[GeneratedQuestion],
                          total_count: int, technical_count: int,
                          behavioral_count: int, bank_count: int,
-                         generated_count: int) -> list[GeneratedQuestion]:
+                         generated_count: int, q_config) -> list[GeneratedQuestion]:
         """Validate and fix LLM output."""
         # 1. Count validation
         if len(questions) != total_count:
@@ -115,16 +129,16 @@ class QuestionGenerator:
             questions = tech[:technical_count] + beh[:behavioral_count]
 
         # 3. Type coverage validation (technical only)
-        if config.ENFORCE_TYPE_COVERAGE:
+        if q_config.enforce_type_coverage:
             tech_qs = [q for q in questions if q.domain == "technical"]
             type_counts = Counter(q.type for q in tech_qs)
-            required_types = {"core", "database", "scenario_based"}
+            required_types = set(q_config.technical_type_ratio.keys())
             missing = required_types - set(type_counts.keys())
             if missing:
                 print(f"[question_generation] WARNING: missing technical types: {missing}")
 
         # 4. Deduplication (simple text similarity)
-        if config.DEDUPLICATION_ENABLED:
+        if q_config.deduplication_enabled:
             seen = set()
             unique = []
             for q in questions:
@@ -140,6 +154,7 @@ class QuestionGenerator:
 
     async def generate(
         self,
+        role_id: str,
         role: str,
         jd_text: str,
         seniority_tier: str,
@@ -149,12 +164,16 @@ class QuestionGenerator:
         work_experience: list[str],
         projects: list[str],
     ) -> QuestionGenerationResponse:
+        # Load per-role config (falls back to static defaults)
+        q_config = _get_question_gen_config_from_role(role_id)
+
         total_count = question_count_for(
-            relevant_years, config.BASE_QUESTION_COUNT, config.YEARS_DIVISOR, config.MAX_QUESTION_COUNT
+            relevant_years, q_config.base_question_count,
+            q_config.years_divisor, q_config.max_question_count
         )
-        technical_count = round(total_count * config.TECHNICAL_SPLIT)
+        technical_count = round(total_count * q_config.technical_split)
         behavioral_count = total_count - technical_count
-        bank_count = round(total_count * config.BANK_QUESTION_RATIO)
+        bank_count = round(total_count * q_config.bank_question_ratio)
         generated_count = total_count - bank_count
 
         # Pre-prompt analysis
@@ -167,7 +186,7 @@ class QuestionGenerator:
         ) or "(none available)"
 
         # Build prompt injections
-        type_hint = self._build_type_distribution_hint(analysis, technical_count)
+        type_hint = self._build_type_distribution_hint(analysis, technical_count, q_config)
         skill_hint = self._build_skill_match_hint(analysis, skills)
 
         prompt = prompts.GENERATION_PROMPT.format(
@@ -200,7 +219,7 @@ class QuestionGenerator:
         # Post-LLM validation
         result.questions = self._validate_output(
             result.questions, total_count, technical_count,
-            behavioral_count, bank_count, generated_count
+            behavioral_count, bank_count, generated_count, q_config
         )
 
         return result

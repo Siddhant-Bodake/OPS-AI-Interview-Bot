@@ -97,6 +97,7 @@ async def generate_questions(
     projects = [p["name"] for p in json.loads(profile_row["projects"])]
 
     result = await generator.generate(
+        role_id=body.role_id,
         role=role_row["role_name"],
         jd_text=role_row["jd_text"],
         seniority_tier=seniority_tier,
