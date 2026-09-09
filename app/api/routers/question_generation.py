@@ -15,6 +15,7 @@ from app.core.database import get_pool
 from app.core.security import require_api_key
 from app.modules.interview_engine.engine import build_gemini_client
 from app.modules.question_generation import QuestionGenerator, determine_seniority_tier
+from app.modules.question_generation.schemas import QuestionGenConfig
 
 router = APIRouter(
     prefix="/question-generation",
@@ -46,7 +47,7 @@ async def generate_questions(
     pool = get_pool()
 
     role_row = await pool.fetchrow(
-        "SELECT id, role_name, jd_text, seniority_tier FROM job_roles WHERE id = $1",
+        "SELECT id, role_name, jd_text, seniority_tier, question_gen_config FROM job_roles WHERE id = $1",
         uuid.UUID(body.role_id),
     )
     if role_row is None:
@@ -96,6 +97,10 @@ async def generate_questions(
     ]
     projects = [p["name"] for p in json.loads(profile_row["projects"])]
 
+    # Parse question_gen_config from DB (JSONB comes as string from asyncpg)
+    q_config_dict = json.loads(role_row["question_gen_config"]) if role_row["question_gen_config"] else {}
+    q_config = QuestionGenConfig(**q_config_dict) if q_config_dict else QuestionGenConfig()
+
     result = await generator.generate(
         role_id=body.role_id,
         role=role_row["role_name"],
@@ -106,6 +111,7 @@ async def generate_questions(
         skills=skills,
         work_experience=work_experience,
         projects=projects,
+        q_config=q_config,
     )
 
     questions_json = [q.model_dump() for q in result.questions]

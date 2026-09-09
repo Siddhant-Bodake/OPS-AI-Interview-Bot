@@ -3,10 +3,8 @@ given already-fetched role config, bank questions, and resume profile."""
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from collections import Counter
-from pathlib import Path
 
 from google import genai
 from google.genai import errors, types
@@ -14,18 +12,6 @@ from google.genai import errors, types
 from . import config, prompts
 from .schemas import GeneratedQuestion, QuestionGenConfig, QuestionGenerationResponse
 from .seniority import question_count_for
-from app.core.config import settings
-
-
-def _get_question_gen_config_from_role(role_id: str) -> QuestionGenConfig:
-    """Load question_gen_config directly from role_config.json. Falls back to static defaults."""
-    try:
-        data = json.loads(Path(settings.ROLE_CONFIG_PATH).read_text())
-        role_data = data.get(role_id, {})
-        config_dict = role_data.get("question_gen_config", {})
-        return QuestionGenConfig(**config_dict) if config_dict else QuestionGenConfig()
-    except Exception:
-        return QuestionGenConfig()
 
 
 class QuestionGenerator:
@@ -163,9 +149,10 @@ class QuestionGenerator:
         skills: list[str],
         work_experience: list[str],
         projects: list[str],
+        q_config: QuestionGenConfig | None = None,
     ) -> QuestionGenerationResponse:
-        # Load per-role config (falls back to static defaults)
-        q_config = _get_question_gen_config_from_role(role_id)
+        if q_config is None:
+            q_config = QuestionGenConfig()
 
         total_count = question_count_for(
             relevant_years, q_config.base_question_count,

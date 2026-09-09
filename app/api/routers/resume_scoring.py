@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Uploa
 import uvicorn
 
 from app.core.config import settings
+from app.core.database import get_pool
 from app.modules.resume_scoring.client import build_gemini_client
 from app.modules.resume_scoring import (
     ResumeExtractor,
@@ -67,7 +68,7 @@ async def score_resume_endpoint(
         )
 
     try:
-        role_requirements = get_role(role_id, settings.ROLE_CONFIG_PATH)
+        role_requirements = await get_role(role_id, get_pool())
     except RoleNotFoundError:
         raise HTTPException(status_code=404, detail=f"Unknown role_id: {role_id!r}")
 

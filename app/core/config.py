@@ -14,7 +14,6 @@ load_dotenv()
 class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    ROLE_CONFIG_PATH: str = os.getenv("ROLE_CONFIG_PATH", "config/role_config.json")
     RESUME_SCORING_API_KEY: str = os.getenv("RESUME_SCORING_API_KEY", "")  # shared secret, n8n sends this back
 
     # URL-based resume download settings
