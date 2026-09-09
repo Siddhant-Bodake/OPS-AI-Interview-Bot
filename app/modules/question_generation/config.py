@@ -7,7 +7,7 @@ MIN_SECONDS_BETWEEN_GEMINI_CALLS = 1.0
 TECHNICAL_SPLIT = 0.7   # fixed 60/40 technical/behavioral mix
 BEHAVIORAL_SPLIT = 0.3
 
-BASE_QUESTION_COUNT = 15    # count formula: base + years/2, capped
+BASE_QUESTION_COUNT = 20    # count formula: base + years/2, capped
 YEARS_DIVISOR = 0.5
 MAX_QUESTION_COUNT = 25
 
