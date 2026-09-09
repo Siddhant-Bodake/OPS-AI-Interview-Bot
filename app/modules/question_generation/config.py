@@ -1,6 +1,6 @@
 """Tunable constants for Module 4 (AI question generation)."""
 
-GEMINI_MODEL = "gemini-3.5-flash-lite"
+GEMINI_MODEL = "gemini-3.5-flash"
 MIN_SECONDS_BETWEEN_GEMINI_CALLS = 1.0
 
 # Locked decisions from spec:
