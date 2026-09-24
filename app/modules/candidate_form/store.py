@@ -142,15 +142,15 @@ class CandidateFormStore:
             )
         return (row["id"], row["role_id"]) if row else None
 
-    async def mark_form_submitted(self, candidate_id: UUID) -> None:
+    async def mark_form_submitted(self, candidate_id: UUID, phone_number: str) -> None:
         async with self._pool.acquire() as conn:
             await conn.execute(
                 f"""
                 UPDATE {CANDIDATE_TABLE}
-                SET is_form_submitted = TRUE
+                SET is_form_submitted = TRUE, mobile_no = $2
                 WHERE id = $1
                 """,
-                candidate_id,
+                candidate_id, phone_number,
             )
 
 

@@ -218,7 +218,7 @@ class CandidateFormService:
             candidate_id=candidate.candidate_id,
             data=data,
         )
-        await self._store.mark_form_submitted(candidate.candidate_id)
+        await self._store.mark_form_submitted(candidate.candidate_id, data.phone_number)
 
         # Send webhook to n8n with candidate_id
         logger.info("[webhook] FIRST_TIME_SCHEDULE_WEBHOOK setting = %r", settings.FIRST_TIME_SCHEDULE_WEBHOOK)
