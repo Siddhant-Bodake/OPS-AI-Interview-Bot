@@ -11,6 +11,7 @@ logging.basicConfig(
 from app.api.routers.question_generation import router as question_generation_router
 from app.api.routers.candidate_form import router as candidate_form_router
 from app.api.routers.resume_scoring import router as resume_scoring_router
+from app.api.routers.transcript_eval import router as transcript_eval_router
 from app.core.config import settings
 from app.core.database import close_db_pool, init_db_pool
 
@@ -26,6 +27,7 @@ app = FastAPI(title="AI Interview Bot — Backend Services", lifespan=lifespan)
 app.include_router(resume_scoring_router)
 app.include_router(candidate_form_router)
 app.include_router(question_generation_router)
+app.include_router(transcript_eval_router)
 
 @app.get("/health")
 async def health():
