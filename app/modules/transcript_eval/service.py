@@ -118,7 +118,6 @@ async def evaluate_transcript(session_id: str) -> None:
             "overall_score": {"type": "NUMBER"},
             "score_by_domain": {
                 "type": "OBJECT",
-                "additionalProperties": {"type": "NUMBER"}
             },
             "overall_question_count": {"type": "INTEGER"},
             "asked_question_count": {"type": "INTEGER"},
@@ -159,7 +158,7 @@ async def evaluate_transcript(session_id: str) -> None:
                     overall_question_count = $4,
                     asked_question_count = $5,
                     qb_question_attempt_count = $6,
-                    answerd_question_count = $7,
+                    answered_question_count = $7,
                     updated_at = NOW()
                 WHERE invses_id = $8
                 """,
