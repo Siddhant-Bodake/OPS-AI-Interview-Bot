@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Debug SSH key (optional)
         run: |
-          if [ -n "${{ secrets.DEV_SERVER_SSH_KEY }}" ]; then
+          if [ -n "${{ secrets.AI_SERVER_SSH_KEY }}" ]; then
             echo "SSH key is set"
           else
             echo "SSH key is NOT set"
@@ -21,9 +21,9 @@ jobs:
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host: ${{ secrets.DEV_SERVER_HOST }}
-          username: ${{ secrets.DEV_SERVER_USERNAME }}
-          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          host: ${{ secrets.AI_SERVER_HOST }}
+          username: ${{ secrets.AI_SERVER_USERNAME }}
+          key: ${{ secrets.AI_SERVER_SSH_KEY }}
           port: 22
           script: |
             set -e
