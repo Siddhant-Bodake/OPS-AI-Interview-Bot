@@ -12,7 +12,7 @@ services:
     command: streamlit run streamlit_app/candidate_form.py --server.port 8501 --server.address 0.0.0.0
     env_file: .env
     environment:
-      - FASTAPI_BASE_URL=${FASTAPI_BASE_URL:-http://api:8000}
+      - FASTAPI_BASE_URL=http://api:8000
     ports:
       - "8501:8501"
     depends_on:
