@@ -13,6 +13,7 @@ load_dotenv()
 
 class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     RESUME_SCORING_API_KEY: str = os.getenv("RESUME_SCORING_API_KEY", "")  # shared secret, n8n sends this back
 

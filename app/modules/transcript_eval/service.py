@@ -129,7 +129,7 @@ async def evaluate_transcript(session_id: str) -> None:
 
     try:
         response = await client.aio.models.generate_content(
-            model=settings.GEMINI_MODEL if hasattr(settings, "GEMINI_MODEL") else "gemini-3.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
