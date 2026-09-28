@@ -29,5 +29,6 @@ jobs:
             set -e
             cd /root/projects/interview-orchestration-backend
             git pull origin main
+            docker compose down --remove-orphans
             docker compose up -d --build
             echo "The application has been deployed successfully."
