@@ -1,0 +1,39 @@
+name: Deploy interview-orchestration-backend
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug SSH key (optional)
+        run: |
+          if [ -n "${{ secrets.DEV_SERVER_SSH_KEY }}" ]; then
+            echo "SSH key is set"
+          else
+            echo "SSH key is NOT set"
+          fi
+        shell: bash
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USERNAME }}
+          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd /root/projects/interview-orchestration-backend
+            git pull origin main
+            docker build --pull -t interview-orchestration-backend .
+            docker stop interview-orchestration-backend || true
+            docker rm interview-orchestration-backend || true
+            docker run -p 8002:8000 -d \
+              --name interview-orchestration-backend \
+              --restart=unless-stopped \
+              interview-orchestration-backend
+            echo "The application has been deployed successfully."
