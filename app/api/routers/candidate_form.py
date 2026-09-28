@@ -1,14 +1,13 @@
 """FastAPI wrapper for candidate application form submissions."""
 from __future__ import annotations
 
-import secrets
-
 import asyncpg
 from asyncpg.exceptions import IntegrityConstraintViolationError
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from app.core.config import settings
 from app.core.database import get_pool
+from app.core.security import require_api_key
 from app.modules.candidate_form import (
     CandidateFormCreate,
     CandidateFormService,
@@ -20,23 +19,10 @@ from app.modules.candidate_form import (
 )
 
 
-def verify_api_key(x_api_key: str = Header(...)) -> None:
-    if not settings.CANDIDATE_FORM_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server misconfigured: CANDIDATE_FORM_API_KEY not set.",
-        )
-    if not secrets.compare_digest(x_api_key, settings.CANDIDATE_FORM_API_KEY):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing API key.",
-        )
-
-
 router = APIRouter(
     prefix="/candidate-form",
     tags=["candidate-form"],
-    dependencies=[Depends(verify_api_key)],
+    dependencies=[Depends(require_api_key(settings.CANDIDATE_FORM_API_KEY, "candidate-form"))],
 )
 
 
