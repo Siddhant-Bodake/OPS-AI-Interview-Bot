@@ -1,16 +1,15 @@
 """FastAPI wrapper around Module 2 (resume parsing & scoring) for n8n to call."""
 from __future__ import annotations
 
-import secrets
 import tempfile
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
-import uvicorn
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.core.config import settings
 from app.core.database import get_pool
+from app.core.security import require_api_key
 from app.modules.resume_scoring.client import build_gemini_client
 from app.modules.resume_scoring import (
     ResumeExtractor,
@@ -29,14 +28,7 @@ from app.modules.resume_scoring.url_download import (
 )
 
 
-def verify_api_key(x_api_key: str = Header(...)) -> None:
-    if not settings.RESUME_SCORING_API_KEY:
-        raise HTTPException(status_code=500, detail="Server misconfigured: RESUME_SCORING_API_KEY not set.")
-    if not secrets.compare_digest(x_api_key, settings.RESUME_SCORING_API_KEY):
-        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
-
-
-router = APIRouter(prefix="/resume-scoring", tags=["resume-scoring"], dependencies=[Depends(verify_api_key)])
+router = APIRouter(prefix="/resume-scoring", tags=["resume-scoring"], dependencies=[Depends(require_api_key(settings.RESUME_SCORING_API_KEY, "resume-scoring"))])
 
 _extractor: ResumeExtractor | None = None
 
