@@ -1,9 +1,17 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+import secrets
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header
 
 from app.modules.transcript_eval.schemas import EvaluationRequest
 from app.modules.transcript_eval.service import evaluate_transcript
+from app.core.config import settings
 
-router = APIRouter(prefix="/api/v1/transcript-eval", tags=["Transcript Evaluation"])
+def verify_api_key(x_api_key: str = Header(...)) -> None:
+    if not settings.TRANSCRIPT_EVAL_API_KEY:
+        raise HTTPException(status_code=500, detail="Server misconfigured: TRANSCRIPT_EVAL_API_KEY not set.")
+    if not secrets.compare_digest(x_api_key, settings.TRANSCRIPT_EVAL_API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
+
+router = APIRouter(prefix="/api/v1/transcript-eval", tags=["Transcript Evaluation"], dependencies=[Depends(verify_api_key)])
 
 @router.post("/evaluate", status_code=202)
 async def trigger_evaluation(request: EvaluationRequest, background_tasks: BackgroundTasks):

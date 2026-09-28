@@ -28,4 +28,5 @@ class Settings:
     FASTAPI_BASE_URL: str = os.getenv("FASTAPI_BASE_URL")
     FIRST_TIME_SCHEDULE_WEBHOOK: str = os.getenv("FIRST_TIME_SCHEDULE_WEBHOOK")
     QUESTION_GENERATION_API_KEY: str = os.getenv("QUESTION_GENERATION_API_KEY", "")
+    TRANSCRIPT_EVAL_API_KEY: str = os.getenv("QUESTION_GENERATION_API_KEY", "")
 settings = Settings()
