@@ -31,4 +31,8 @@ jobs:
             git pull origin main
             docker compose down --remove-orphans
             docker compose up -d --build
+            sleep 10
+            docker compose ps
+            curl -fsS http://localhost:8002/docs > /dev/null
+            docker image prune -f
             echo "The application has been deployed successfully."
