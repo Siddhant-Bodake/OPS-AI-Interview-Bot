@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Debug SSH key (optional)
         run: |
-          if [ -n "${{ secrets.AI_SERVER_SSH_KEY }}" ]; then
+          if [ -n "${{ secrets.HRMS_SERVER_SSH_KEY }}" ]; then
             echo "SSH key is set"
           else
             echo "SSH key is NOT set"
@@ -21,9 +21,9 @@ jobs:
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host: ${{ secrets.AI_SERVER_HOST }}
-          username: ${{ secrets.AI_SERVER_USERNAME }}
-          key: ${{ secrets.AI_SERVER_SSH_KEY }}
+          host: ${{ secrets.HRMS_SERVER_HOST }}
+          username: ${{ secrets.HRMS_SERVER_USERNAME }}
+          key: ${{ secrets.HRMS_SERVER_SSH_KEY }}
           port: 22
           script: |
             set -e
@@ -31,4 +31,8 @@ jobs:
             git pull origin main
             docker compose down --remove-orphans
             docker compose up -d --build
+            sleep 10
+            docker compose ps
+            curl -fsS http://localhost:8002/docs > /dev/null
+            docker image prune -f
             echo "The application has been deployed successfully."
