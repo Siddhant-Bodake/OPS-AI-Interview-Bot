@@ -16,7 +16,7 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-interview_bot}}
     ports:
-      - "8000:8000"
+      - "8002:8000"
     depends_on:
       - postgres
   streamlit:

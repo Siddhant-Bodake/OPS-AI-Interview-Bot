@@ -29,11 +29,5 @@ jobs:
             set -e
             cd /root/projects/interview-orchestration-backend
             git pull origin main
-            docker build --pull -t interview-orchestration-backend .
-            docker stop interview-orchestration-backend || true
-            docker rm interview-orchestration-backend || true
-            docker run -p 8002:8000 -d \
-              --name interview-orchestration-backend \
-              --restart=unless-stopped \
-              interview-orchestration-backend
+            docker compose up -d --build
             echo "The application has been deployed successfully."
